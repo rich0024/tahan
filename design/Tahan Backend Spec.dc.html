@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/organic-b2569527-acac-4975-8b1c-c0bbf942647e/styles.css">
+<script src="_ds/organic-b2569527-acac-4975-8b1c-c0bbf942647e/_ds_bundle.js"></script>
+<script src="./doc-page.js"></script>
+<style>
+doc-page:not(:defined){visibility:hidden}
+.h-sec{font-family:var(--font-heading);font-size:23px;line-height:1.15;margin:34px 0 6px;color:var(--color-text)}
+.h-sub{font-family:var(--font-heading);font-size:16px;margin:22px 0 4px;color:var(--color-accent-700)}
+.h-kick{font-family:var(--font-body);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-2-700);margin:0 0 2px}
+.h-p{font-family:var(--font-body);font-size:12.5px;line-height:1.55;margin:0 0 9px;color:var(--color-text)}
+.h-li{font-family:var(--font-body);font-size:12.5px;line-height:1.5;margin:0 0 5px}
+.h-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;line-height:1.6;white-space:pre;background:var(--color-neutral-100);border:1px solid var(--color-accent-2-200);border-radius:14px;padding:13px 15px;margin:0 0 11px;overflow-x:hidden;break-inside:avoid;color:var(--color-text)}
+.h-tbl{width:100%;border-collapse:collapse;font-family:var(--font-body);font-size:10.5px;margin:0 0 12px}
+.h-tbl th{text-align:left;font-weight:600;padding:6px 7px;border-bottom:1.5px solid var(--color-accent-400);color:var(--color-accent-800);white-space:nowrap}
+.h-tbl td{padding:6px 7px;border-bottom:1px solid var(--color-divider);vertical-align:top}
+.h-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px}
+.h-note{break-inside:avoid;border-radius:16px;background:var(--color-accent-2-100);padding:13px 16px;margin:0 0 12px}
+.h-warn{break-inside:avoid;border-radius:16px;background:var(--color-accent-200);padding:13px 16px;margin:0 0 12px}
+</style>
+</helmet>
+
+<doc-page margin="0.72in">
+
+<div class="h-kick">Tahan · data model &amp; backend · September 2026</div>
+<h1 style="font-family:var(--font-heading);font-size:36px;line-height:1.05;margin:0 0 10px;color:var(--color-text)">What Tahan stores, and who can see it</h1>
+<p class="h-p" style="font-size:14px;max-width:52em">Tahan is twelve people, private, photo-heavy and used on bad rural wifi. That combination decides almost everything below: there is no feed to rank, no discovery to index, and no scale problem — but there is a hard privacy boundary and a real offline requirement. This is the schema, the rules that enforce the boundary, what happens when someone leaves, and the order to build it in.</p>
+
+<div class="h-note">
+<p class="h-p" style="margin:0"><strong>Companion documents:</strong> <span class="h-mono">Tahan Flutter Handoff</span> (theme, painters, screens) and <span class="h-mono">Tahan.dc.html</span> (the working prototype). This one covers only what lives on a server.</p>
+</div>
+
+<h2 class="h-sec">1 · The recommendation</h2>
+<p class="h-p"><strong>Firebase — Firestore, Storage, Auth, Cloud Functions, FCM.</strong> Not because it is fashionable, but because it is the only option that gives you the offline behaviour for free: Firestore's local persistence means the feed opens instantly with last-known content, writes queue on disk and replay when signal returns, and you never write a sync layer. On a Flutter app for twelve people, that is most of the backend work already done.</p>
+<p class="h-p">The honest alternative is Supabase — nicer to reason about, real SQL, row-level security that reads like English. Its offline story in Flutter is still yours to build. Pick it only if you already know Postgres well and would rather own the sync than own Firestore's query limits.</p>
+
+<h3 class="h-sub">1.1 What it costs at family scale</h3>
+<p class="h-p">One village of twelve, opening the app a few times a day, sits inside Firebase's free tier with room to spare — the bill only starts when photo storage grows. Budget for storage and egress, not reads. Rough shape: a few hundred photos a month at 1600px is single-digit gigabytes a year. Set a billing alert at a number that would surprise you and forget about it.</p>
+
+<div class="h-warn">
+<p class="h-p" style="margin:0"><strong>The one thing to get right up front:</strong> a village is the permission boundary, so every document that isn't a user's own must live <em>under</em> <span class="h-mono">/villages/{villageId}/</span>. Rules can then be written once against membership instead of per-collection. Retrofitting this later means rewriting every query in the app.</p>
+</div>
+
+<h2 class="h-sec">2 · Collections</h2>
+<div class="h-code">/users/{uid}
+  displayName        string
+  avatar             { skin, hairColor, top, hair, glasses, face }   // six ints — §3
+  companion          { kind: 'dog'|'cat'|'baby', name, coat, ...spec } | null
+  villages           [villageId]        // for the switcher; mirrors membership
+  textScale          number             // the user's own large-text preference
+  createdAt          timestamp
+
+/users/{uid}/recipes/{recipeId}         // RECIPES BELONG TO THE PERSON
+  title, story, ingredients[], method[], cookedCount, photoPath
+  sharedWith         [villageId]        // unshare = remove the id, nothing is deleted
+
+/villages/{villageId}
+  name, sceneKey                        // one of the nine scenes — retints the app
+  createdBy          uid
+  memberCount        int                // denormalised, maintained by a function
+  createdAt          timestamp
+
+/villages/{villageId}/members/{uid}
+  role               'admin' | 'member'
+  displayName, avatar                   // copied at join; refreshed by a function
+  joinedAt, lastSeenAt
+
+/villages/{villageId}/posts/{postId}
+  type               'update'|'photo'|'recipe'|'milestone'|'routine'|'event'
+  authorId           uid
+  body               string
+  photoPaths         [string]           // Storage paths, §7
+  recipeRef          path | null        // a shared copy pointer, not the recipe
+  pinnedUntil        timestamp | null   // events pin until the day after
+  reactionCounts     { heart, hands, smile, star }   // four, and only four
+  noteCount          int
+  createdAt          timestamp
+
+/villages/{villageId}/posts/{postId}/reactions/{uid}
+  kind               'heart'|'hands'|'smile'|'star'  // one per person, changeable
+
+/villages/{villageId}/posts/{postId}/notes/{noteId}
+  authorId, body, createdAt
+
+/villages/{villageId}/statuses/{uid}    // the daily line — never notifies
+  text, expiresAt                       // TTL policy deletes it
+
+/villages/{villageId}/routines/{routineId}
+  title, ownerId, forCompanion bool, schedule, visibility 'private'|'streaks'
+/villages/{villageId}/routines/{routineId}/checkins/{yyyy-mm-dd}
+  byUid, at                             // SELF-REPORTED. no missed-dose write, ever
+
+/villages/{villageId}/events/{eventId}
+  title, startsAt, where, hostId, postId
+  comingUids [uid], cantUids [uid]
+
+/villages/{villageId}/events/{eventId}/bring/{rowId}     // ONE DOC PER ROW — §5
+  group 'eat'|'drink'|'help'
+  title, askedBy uid | null, claimedBy uid | null, note
+
+/villages/{villageId}/events/{eventId}/ideas/{ideaId}
+  title, byUid, inUids [uid]            // "I'm in" only. no downvote field exists
+
+/villages/{villageId}/albums/{albumId}
+  title, coverPath, photoPaths[]
+
+/invites/{token}                        // top-level: readable before you're a member
+  villageId, createdBy, expiresAt, usedAt | null</div>
+
+<h3 class="h-sub">2.1 Notes on the shape</h3>
+<ul style="margin:0 0 10px;padding-left:19px">
+<li class="h-li"><strong>Recipes are the exception</strong> to the village-owned rule, and deliberately so — the design says a recipe is yours and gets lent to a village. <span class="h-mono">sharedWith</span> is the whole sharing mechanism; a village post of type <span class="h-mono">recipe</span> only points at it.</li>
+<li class="h-li"><strong>Reaction counts are denormalised</strong> onto the post so the feed is one query. Write the count and the per-user doc in the same transaction; at twelve people contention is not a concern.</li>
+<li class="h-li"><strong>Statuses expire</strong> — use a Firestore TTL policy on <span class="h-mono">expiresAt</span> rather than a cleanup job.</li>
+<li class="h-li"><strong>No <span class="h-mono">users</span> collection reads in the feed.</strong> Name and avatar are copied into the member doc and read once per village session; a function refreshes them when a user edits their avatar.</li>
+</ul>
+
+<h2 class="h-sec">3 · Avatars are data, not files</h2>
+<p class="h-p">The six integers in <span class="h-mono">avatar</span> are the entire representation — no uploads, no crops, no image hosting, no moderation surface, and nothing to migrate. Store them as a map, validate the ranges in rules (<span class="h-mono">skin/hairColor/top</span> 0–4, <span class="h-mono">hair</span> 0–7, <span class="h-mono">glasses/face</span> 0–3), and let the painter do the rest. This is the cheapest good decision in the whole product; don't let a "just add photo avatars" ticket in later without arguing about it.</p>
+
+<h2 class="h-sec">4 · The village boundary</h2>
+<p class="h-p">Every rule reduces to one question: are you a member of this village, and are you an admin? Write those two helpers once.</p>
+<div class="h-code">rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    function member(vid) {
+      return exists(/databases/$(db)/documents/villages/$(vid)/members/$(request.auth.uid));
+    }
+    function admin(vid) {
+      return get(/databases/$(db)/documents/villages/$(vid)/members/$(request.auth.uid))
+               .data.role == 'admin';
+    }
+    function mine(uid) { return request.auth.uid == uid; }
+
+    match /users/{uid} {
+      allow read, write: if mine(uid);
+      match /recipes/{id} {
+        allow read:  if mine(uid)
+                     || resource.data.sharedWith.hasAny(memberVillages());
+        allow write: if mine(uid);          // only the author ever edits a recipe
+      }
+    }
+
+    match /villages/{vid} {
+      allow read:   if member(vid);
+      allow update: if admin(vid);          // name, scene
+      allow delete: if false;               // villages are archived, never deleted
+
+      match /members/{uid} {
+        allow read:   if member(vid);
+        allow create: if false;             // joining goes through redeemInvite()
+        allow delete: if admin(vid) || mine(uid);   // remove, or leave
+        allow update: if admin(vid);        // appoint / demote
+      }
+
+      match /posts/{pid} {
+        allow read:   if member(vid);
+        allow create: if member(vid) && request.resource.data.authorId == request.auth.uid;
+        allow update: if mine(resource.data.authorId)
+                      || onlyChanges(['reactionCounts','noteCount']);
+        allow delete: if mine(resource.data.authorId) || admin(vid);   // moderation
+
+        match /reactions/{uid} { allow read: if member(vid);
+                                 allow write: if member(vid) && mine(uid); }
+        match /notes/{nid}     { allow read: if member(vid);
+                                 allow create: if member(vid);
+                                 allow delete: if mine(resource.data.authorId) || admin(vid); }
+      }
+
+      match /events/{eid}/bring/{rid} {
+        allow read: if member(vid);
+        // anyone may claim an OPEN row, or release their own — nobody takes another's
+        allow update: if member(vid)
+          && ((resource.data.claimedBy == null
+               && request.resource.data.claimedBy == request.auth.uid)
+           || (resource.data.claimedBy == request.auth.uid
+               && request.resource.data.claimedBy == null));
+      }
+    }
+
+    match /invites/{token} {
+      allow get:   if true;                 // a newcomer must see who's inside
+      allow write: if false;                // minted and redeemed by functions only
+    }
+  }
+}</div>
+<p class="h-p">Two notes. <span class="h-mono">member()</span> costs one document read per rule evaluation — fine here, and worth it for rules you can actually read. And the invite document is the only thing outside the boundary: it exposes the village name, the member count and the host's name to whoever holds the link, which is exactly what the invitation screen shows and nothing more.</p>
+
+<h2 class="h-sec">5 · Offline, and why the boards are documents</h2>
+<p class="h-p">Turn on Firestore persistence with an unlimited cache size and the read path is solved: the feed renders from disk before the network answers, and writes queue locally. What you must design around is the <em>conflict</em> model — Firestore merges at the field level and last write wins.</p>
+<p class="h-p">That is why a bring-list row is its own document rather than an element in an array on the event. Two people claiming two different rows from two kitchens with no signal is the normal case; if rows were an array, one of them would silently lose their claim on reconnect. Same reasoning for reactions (one doc per user), notes and check-ins. <strong>Anywhere two people can act at once, give each person their own document.</strong></p>
+<ul style="margin:0 0 10px;padding-left:19px">
+<li class="h-li">Claiming an already-claimed row is the one race the rules reject outright — show "Nina got there first" rather than a generic error.</li>
+<li class="h-li">Photos do not queue in Firestore. Keep an outbox table of pending uploads with the local file path, retry on connectivity, and show the post in the feed with a soft "sending" state.</li>
+<li class="h-li">Cache the last ~200 feed items and their thumbnails on disk deliberately; don't rely on the OS image cache.</li>
+</ul>
+
+<h2 class="h-sec">6 · Leaving, removing, deleting</h2>
+<p class="h-p">The design promise is specific and must be implemented literally: <em>your updates and photos leave with you; recipes are yours to keep or leave behind.</em> Do it in one callable function, never client-side.</p>
+<table class="h-tbl">
+<thead><tr><th>What</th><th>On leaving / being removed</th></tr></thead>
+<tbody>
+<tr><td>Posts you authored</td><td>Deleted, with their notes and reactions subcollections.</td></tr>
+<tr><td>Photos you uploaded</td><td>Storage objects deleted — including any inside albums.</td></tr>
+<tr><td>Notes you left on others' posts</td><td>Deleted. Parent <span class="h-mono">noteCount</span> decremented.</td></tr>
+<tr><td>Reactions you gave</td><td>Deleted, counts decremented.</td></tr>
+<tr><td>Recipes</td><td>Your choice, asked in the leave sheet: <em>keep</em> removes the village from <span class="h-mono">sharedWith</span>; <em>leave behind</em> copies the recipe to the village under your name and keeps yours.</td></tr>
+<tr><td>Routines you owned</td><td>Deleted with their check-ins. Routines others check for you are reassigned to the host.</td></tr>
+<tr><td>Event rows you claimed</td><td>Released back to open, so the host sees the gap reappear.</td></tr>
+<tr><td>Your membership</td><td>Deleted; <span class="h-mono">memberCount</span> decremented; village id removed from your user doc.</td></tr>
+</tbody>
+</table>
+<p class="h-p">Removal by an admin runs the same function with <span class="h-mono">keepRecipes: true</span>. Account deletion runs it for every village, then deletes <span class="h-mono">/users/{uid}</span>. Neither is undoable, and both should say so plainly before they run.</p>
+<p class="h-p"><strong>Moderation take-down</strong> (an admin deleting someone else's post) is a different act and should leave a trace: write <span class="h-mono">/villages/{vid}/moderation/{id}</span> with the actor, the author, the time and the post type, and tell the author. The screen for it is still to be designed.</p>
+
+<h2 class="h-sec">7 · Photos</h2>
+<p class="h-p">Storage path <span class="h-mono">/villages/{vid}/{postId}/{uuid}.jpg</span>, mirroring the Firestore boundary so the same membership rule protects both. Resize on the client before upload — a 1600px long edge for viewing and a 400px thumbnail — and never upload the camera original; it saves the user's data plan and most of your storage bill. Signed URLs are unnecessary: rules cover it.</p>
+
+<h2 class="h-sec">8 · The three notifications</h2>
+<p class="h-p">Push is rare by design, so there are only three senders — resist adding a fourth.</p>
+<table class="h-tbl">
+<thead><tr><th>Trigger</th><th>Function</th><th>Body</th></tr></thead>
+<tbody>
+<tr><td>A note on your post, or a thank-you</td><td>Firestore trigger on <span class="h-mono">notes</span> / <span class="h-mono">reactions</span></td><td>Actionable: reply and thank from the notification itself.</td></tr>
+<tr><td>An event is created</td><td>Trigger on <span class="h-mono">events</span></td><td>Once. Claims and votes never notify.</td></tr>
+<tr><td>Sunday digest · the evening before an event</td><td>Scheduled function</td><td>The digest letter — three numbers, two moments, who has gone quiet. The event reminder carries <em>your own row</em>.</td></tr>
+</tbody>
+</table>
+
+<h2 class="h-sec">9 · Build order</h2>
+<p class="h-p">You have a real first village — your family — which means you can cut hard and still ship something worth using. Each milestone below is a thing they can do, not a layer.</p>
+<table class="h-tbl">
+<thead><tr><th>#</th><th>Milestone</th><th>Includes</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>A face</td><td>Auth, user doc, the avatar painter and editor. No village yet. Ship it to yourself.</td></tr>
+<tr><td>2</td><td>A room</td><td>The scene painter, the nine palettes, theme switching. Still no data.</td></tr>
+<tr><td>3</td><td>A village</td><td>Create, invite link, redeem, members list, admin roles.</td></tr>
+<tr><td>4</td><td>The feed</td><td>Updates, photos, the four reactions, notes, the daily status line. <strong>This is v1.</strong> Put the family on it here.</td></tr>
+<tr><td>5</td><td>The cookbook</td><td>Recipes, sharing, printing the card.</td></tr>
+<tr><td>6</td><td>Routines &amp; lists</td><td>Self-reported check-ins, streaks, visibility.</td></tr>
+<tr><td>7</td><td>Events</td><td>Both boards, RSVP, the pinned card.</td></tr>
+<tr><td>8</td><td>The letter</td><td>Sunday digest, albums, milestones.</td></tr>
+</tbody>
+</table>
+<p class="h-p">Milestones 1 and 2 are the painters, and they come before any screen on purpose — they are the only genuinely novel code in the app, and everything after them is ordinary Flutter that an agent can produce quickly from the handoff document.</p>
+
+<h2 class="h-sec">10 · Still open</h2>
+<ul style="margin:0 0 10px;padding-left:19px">
+<li class="h-li"><strong>Search.</strong> Nothing above supports it. At twelve people and a few hundred posts, client-side filtering over the cache is genuinely enough — decide that consciously rather than reaching for an index later.</li>
+<li class="h-li"><strong>Multi-village users.</strong> The schema supports it; the digest and the notification budget assume one. Decide what a person in four villages gets on a Sunday.</li>
+<li class="h-li"><strong>Export.</strong> "Your photos leave with you" implies a download. A function that zips a user's posts and photos is a day's work and worth doing before the first person leaves.</li>
+<li class="h-li"><strong>Backups.</strong> Turn on scheduled Firestore exports on day one. This is a family's photographs.</li>
+</ul>
+
+</doc-page>
+
+</x-dc>
+</body>
+</html>

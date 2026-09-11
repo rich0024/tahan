@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/organic-b2569527-acac-4975-8b1c-c0bbf942647e/styles.css">
+<script src="_ds/organic-b2569527-acac-4975-8b1c-c0bbf942647e/_ds_bundle.js"></script>
+<script src="./doc-page.js"></script>
+<style>
+doc-page:not(:defined){visibility:hidden}
+.h-sec{font-family:var(--font-heading);font-size:24px;line-height:1.15;margin:32px 0 4px;color:var(--color-text);break-after:avoid}
+.h-secsub{font-family:var(--font-body);font-size:12.5px;line-height:1.5;margin:0 0 14px;color:var(--color-accent-2-700)}
+.h-kick{font-family:var(--font-body);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-2-700);margin:0 0 2px}
+.h-p{font-family:var(--font-body);font-size:12.5px;line-height:1.55;margin:0 0 9px;color:var(--color-text)}
+.h-li{font-family:var(--font-body);font-size:12px;line-height:1.5;margin:0 0 4px}
+.h-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;line-height:1.6;white-space:pre;background:var(--color-neutral-100);border:1px solid var(--color-accent-2-200);border-radius:14px;padding:13px 15px;margin:0 0 11px;overflow-x:hidden;break-inside:avoid;color:var(--color-text)}
+.h-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px}
+.h-note{break-inside:avoid;border-radius:16px;background:var(--color-accent-2-100);padding:13px 16px;margin:0 0 12px}
+.t{break-inside:avoid;border:1px solid var(--color-divider);border-radius:16px;padding:13px 16px 11px;margin:0 0 10px;background:var(--color-surface)}
+.t-h{display:flex;align-items:baseline;gap:9px;margin-bottom:5px}
+.t-id{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;font-weight:700;color:var(--color-accent-800);background:var(--color-accent-200);border-radius:999px;padding:2px 8px;flex:none}
+.t-t{font-family:var(--font-heading);font-size:14.5px;line-height:1.2}
+.t-b{font-family:var(--font-body);font-size:12px;line-height:1.5;margin:0 0 6px}
+.t-l{font-family:var(--font-body);font-size:11.5px;line-height:1.5;margin:0}
+.t-lab{font-weight:700;color:var(--color-accent-2-800)}
+</style>
+</helmet>
+
+<doc-page margin="0.7in">
+
+<div class="h-kick">Tahan · build tickets · milestones 1–4</div>
+<h1 style="font-family:var(--font-heading);font-size:35px;line-height:1.05;margin:0 0 10px;color:var(--color-text)">Getting to v1</h1>
+<p class="h-p" style="font-size:14px;max-width:52em">Thirty-two tickets that take Tahan from an empty repository to a private feed your family is actually using. They are written to be handed to a coding agent one at a time, in order: each names its own definition of done, and none of them requires a decision that hasn't already been made in the design or the backend spec.</p>
+
+<div class="h-note">
+<p class="h-p" style="margin:0 0 6px"><strong>Read first, and keep open:</strong> <span class="h-mono">Tahan Flutter Handoff</span> (theme values, both painter specs, screen inventory) and <span class="h-mono">Tahan Backend Spec</span> (collections, rules, deletion, build order). Tickets reference them rather than repeating them.</p>
+<p class="h-p" style="margin:0"><strong>The prototype is the visual truth.</strong> When a ticket says "matches the prototype", it means <span class="h-mono">Tahan.dc.html</span> — open the relevant screen and compare rather than guessing.</p>
+</div>
+
+<h3 style="font-family:var(--font-heading);font-size:16px;margin:22px 0 4px;color:var(--color-accent-700)">How to run these with an agent</h3>
+<ul style="margin:0 0 10px;padding-left:19px">
+<li class="h-li">One ticket per session, in order. Paste the ticket, the two reference documents, and nothing else.</li>
+<li class="h-li">Every ticket ends with a build that runs on a real device. If it doesn't run, it isn't done — don't stack the next one on top.</li>
+<li class="h-li">Commit per ticket, message <span class="h-mono">T1.4 avatar painter</span>. When a ticket goes wrong you want one thing to revert.</li>
+<li class="h-li">Tickets marked <strong>◆</strong> are the ones worth reviewing carefully yourself. They are load-bearing, and a plausible-looking wrong answer costs a week.</li>
+</ul>
+
+<h3 style="font-family:var(--font-heading);font-size:16px;margin:22px 0 4px;color:var(--color-accent-700)">Repository layout</h3>
+<div class="h-code">lib/
+  app.dart                  MaterialApp, theme wiring, routes
+  theme/                    palettes.dart · village_theme.dart · scene_extension.dart
+  paint/                    primitives.dart · path_parser.dart
+                            avatar_painter.dart · scene_painter.dart
+                            scenes/ (nine data files) · drift.dart · window.dart
+  models/                   user · village · member · post · note · reaction · status
+  data/                     firestore refs, repositories, outbox
+  screens/                  onboarding · avatar_editor · feed · village · me · invitation
+  widgets/                  avatar.dart · post_card.dart · reaction_row.dart · scene_backdrop.dart
+functions/                  invites · leave_village · notifications
+firestore.rules · storage.rules · firestore.indexes.json</div>
+<p class="h-p"><strong>Packages:</strong> <span class="h-mono">firebase_core</span>, <span class="h-mono">firebase_auth</span>, <span class="h-mono">cloud_firestore</span>, <span class="h-mono">firebase_storage</span>, <span class="h-mono">firebase_messaging</span>, <span class="h-mono">cloud_functions</span>, <span class="h-mono">google_fonts</span> (dev only — vendor for release), <span class="h-mono">image</span> or <span class="h-mono">flutter_image_compress</span>, <span class="h-mono">connectivity_plus</span>, <span class="h-mono">shared_preferences</span>, <span class="h-mono">go_router</span>. Nothing else without a reason — every dependency is a thing that breaks at the next Flutter upgrade.</p>
+
+<h2 class="h-sec">Milestone 1 · A face</h2>
+<p class="h-secsub">Auth, a user document, and the avatar painter with its editor. No village, no feed. Ends with you looking at your own drawn face on your own phone.</p>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T1.1</span><span class="t-t">Project scaffold and Firebase wiring</span></div>
+<p class="t-b">Create the Flutter project, add the packages above, register iOS and Android apps, and get <span class="h-mono">firebase_core</span> initialising on both. Set up the Firebase emulator suite for local work — you will use it for every backend ticket.</p>
+<p class="t-l"><span class="t-lab">Done when</span> a debug build runs on a real iPhone and a real Android device and prints a successful Firebase init.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T1.2</span><span class="t-t">Theme and type</span></div>
+<p class="t-b">Build <span class="h-mono">ScenePalette</span>, the nine palettes from §1.2 of the handoff, the OKLCH ramp generator, and <span class="h-mono">villageTheme(palette)</span>. Load Caprasimo and Figtree. Register the <span class="h-mono">VillageScene</span> theme extension.</p>
+<p class="t-l"><span class="t-lab">Done when</span> a throwaway screen shows headings in Caprasimo, body in Figtree, and swapping the palette constant retints buttons, cards and background. <span class="t-lab">Watch for</span> ramp steps generated in RGB instead of OKLCH — they go muddy, and warmth is the point.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T1.3</span><span class="t-t">◆ Paint primitives and the path parser</span></div>
+<p class="t-b">Implement the six primitives (rect, circle, ellipse, filled path, stroked path, sky gradient) as a small sealed model, plus a parser for absolute <span class="h-mono">M L Q C Z</span> only. Both painters are built on this, so it is worth twenty extra minutes of care.</p>
+<p class="t-l"><span class="t-lab">Done when</span> unit tests cover each command and the parser <em>throws</em> on relative commands and arcs rather than silently mis-drawing. <span class="t-lab">Watch for</span> an agent "helpfully" adding <span class="h-mono">h</span>/<span class="h-mono">v</span>/<span class="h-mono">A</span> support — reject it; the geometry scaler assumes every number is an absolute coordinate pair.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T1.4</span><span class="t-t">◆ AvatarPainter</span></div>
+<p class="t-b">Port the avatar geometry from the prototype: the 78-unit authoring box, the kit colours from §3 of the handoff, eight hairstyles, four facial-hair options, four glasses, five clothes. Painter takes an <span class="h-mono">AvatarSpec</span> of six ints and a background palette.</p>
+<p class="t-l"><span class="t-lab">Done when</span> a debug grid of 24 random specs renders at 26, 44 and 96&nbsp;px and every combination is legible with no clipped hair or floating glasses. <span class="t-lab">Watch for</span> features drawn in the wrong z-order at small sizes.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T1.5</span><span class="t-t">Avatar widget and picture cache</span></div>
+<p class="t-b">Wrap the painter in an <span class="h-mono">Avatar(spec, size)</span> widget that caches by spec+size as a <span class="h-mono">ui.Picture</span>, and carries a <span class="h-mono">Semantics</span> label with the person's name.</p>
+<p class="t-l"><span class="t-lab">Done when</span> a list of 200 avatars scrolls at 60fps in profile mode.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T1.6</span><span class="t-t">Sign in</span></div>
+<p class="t-b">Phone or email link — pick one and only one for v1. Create <span class="h-mono">/users/{uid}</span> on first sign-in with a randomised avatar spec and an empty display name.</p>
+<p class="t-l"><span class="t-lab">Done when</span> signing in twice on the same device reuses the same user document, and signing out returns to the start.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T1.7</span><span class="t-t">Avatar editor screen</span></div>
+<p class="t-b">The Me-tab editor from the prototype: the large avatar drawn on a scene sky, swatch rows for skin, hair colour and clothes, segmented rows for hairstyle, glasses and facial hair, and "Surprise me". Writes the six ints to the user document.</p>
+<p class="t-l"><span class="t-lab">Done when</span> changes render instantly, survive a force-quit, and every control is at least 56&nbsp;px tall.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T1.8</span><span class="t-t">Companion avatar</span></div>
+<p class="t-b">The optional second avatar — dog, cat or baby — with a coat index. Belongs to the user, not a village.</p>
+<p class="t-l"><span class="t-lab">Done when</span> a companion can be added, edited and removed, and the editor tabs between it and your own face.</p>
+</div>
+
+<h2 class="h-sec">Milestone 2 · A room</h2>
+<p class="h-secsub">The nine scenes, the drift, the window, and the retint. Still no data — this milestone is entirely drawing, and it is what makes Tahan feel like Tahan.</p>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T2.1</span><span class="t-t">Scene data</span></div>
+<p class="t-b">Port all nine scenes' layer lists and sky gradients into <span class="h-mono">paint/scenes/</span>, one file each, using the primitives from T1.3. Straight transcription from the prototype; no reinterpretation.</p>
+<p class="t-l"><span class="t-lab">Done when</span> each scene's layer count and colours match the prototype exactly.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T2.2</span><span class="t-t">◆ ScenePainter</span></div>
+<p class="t-b">Paint a scene from its layer list into an arbitrary rect: authored at 402×216, scaled uniformly on width, anchored top, bottom gradient stop stretched so the sky can run the full height of the app. Parse and cache paths once at startup.</p>
+<p class="t-l"><span class="t-lab">Done when</span> all nine render correctly at header height (216) and at full screen height, on a short phone and a tall one, with no stretched geometry.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T2.3</span><span class="t-t">Time-of-day wash</span></div>
+<p class="t-b">One low-alpha overlay tinted by the local clock: morning, afternoon, evening, night. Recompute on app resume, not just cold start.</p>
+<p class="t-l"><span class="t-lab">Done when</span> changing the device clock across the four bands visibly changes the wash after a resume.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T2.4</span><span class="t-t">◆ Ambient drift</span></div>
+<p class="t-b">Seven effects — fireflies, leaves, breeze, dust, rain, snow, petals — 18–26 shapes on a single repeating controller, with deterministic per-index phase from a hash of index and scene key.</p>
+<p class="t-l"><span class="t-lab">Done when</span> drift pauses on background and off-screen, and draws <em>zero</em> particles (not slowed ones) when <span class="h-mono">MediaQuery.disableAnimationsOf</span> is true or the app's Ambient motion setting is off. <span class="t-lab">Watch for</span> <span class="h-mono">Random()</span> — the pattern must be stable across rebuilds.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T2.5</span><span class="t-t">Glass, sill and parallax</span></div>
+<p class="t-b">Diagonal sheen, edge vignette, warm ledge, and the backdrop translating at one sixth of scroll offset, clamped so the sky never lifts off the top. All inside a <span class="h-mono">RepaintBoundary</span>.</p>
+<p class="t-l"><span class="t-lab">Done when</span> scrolling a long dummy list stays at 60fps on the oldest device you intend to support.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T2.6</span><span class="t-t">Scene switching retints the app</span></div>
+<p class="t-b">Changing the scene swaps the palette for the whole app over 420&nbsp;ms with an ease-out curve, chrome included.</p>
+<p class="t-l"><span class="t-lab">Done when</span> cycling all nine scenes shows no flash of the old accent and no unthemed widget.</p>
+</div>
+
+<h2 class="h-sec">Milestone 3 · A village</h2>
+<p class="h-secsub">The privacy boundary, made real. Rules and the invite flow come before any content, because retrofitting them is the one mistake you cannot cheaply undo.</p>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T3.1</span><span class="t-t">◆ Firestore, rules and rule tests</span></div>
+<p class="t-b">Create the collections from the backend spec, write <span class="h-mono">firestore.rules</span> and <span class="h-mono">storage.rules</span> as specified, and enable offline persistence with an unlimited cache.</p>
+<p class="t-l"><span class="t-lab">Done when</span> the emulator rules test suite proves a non-member cannot read a village's posts, a member cannot appoint an admin, and a member cannot edit another member's post. Those three tests are the product's whole promise.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T3.2</span><span class="t-t">Create a village</span></div>
+<p class="t-b">Name, scene picker, creator becomes admin, member document written with a copy of their display name and avatar.</p>
+<p class="t-l"><span class="t-lab">Done when</span> the new village's scene immediately themes the app.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T3.3</span><span class="t-t">Invite mint and redeem functions</span></div>
+<p class="t-b">Two callable functions. Mint writes <span class="h-mono">/invites/{token}</span> with an expiry; redeem validates, writes the member document, marks the token used. Clients never write either collection.</p>
+<p class="t-l"><span class="t-lab">Done when</span> a token works exactly once, an expired token fails cleanly, and the share sheet is the platform's own.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T3.4</span><span class="t-t">The invitation screen</span></div>
+<p class="t-b">The pre-join deep-link target from the prototype: the village's own scene, the host's name, who is inside, the two reassurance lines, "Join the village". Renders before the user has an account.</p>
+<p class="t-l"><span class="t-lab">Done when</span> a cold-start deep link lands here, and joining goes straight into the feed.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T3.5</span><span class="t-t">Members and admin</span></div>
+<p class="t-b">The members list, admin-gated: appoint and remove admins, remove members. The creator is admin and cannot be the last admin removed.</p>
+<p class="t-l"><span class="t-lab">Done when</span> a non-admin sees the list but no controls, enforced in rules as well as UI.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T3.6</span><span class="t-t">Village switcher</span></div>
+<p class="t-b">The header avatar opens the switcher: villages as lit doors, each in its own scene, plus the scene picker for the current village.</p>
+<p class="t-l"><span class="t-lab">Done when</span> switching villages retints the app and the feed reloads from cache first.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T3.7</span><span class="t-t">◆ leaveVillage function</span></div>
+<p class="t-b">Implement the deletion table from §6 of the backend spec as one callable function, with the keep-or-leave-behind choice for recipes stubbed until milestone 5. Removal by an admin calls the same function.</p>
+<p class="t-l"><span class="t-lab">Done when</span> an emulator test seeds a member with posts, photos, notes and reactions, calls the function, and asserts every one of them is gone — including the Storage objects.</p>
+</div>
+
+<h2 class="h-sec">Milestone 4 · The feed — this is v1</h2>
+<p class="h-secsub">Updates, photos, four reactions, notes and the daily status line. When this milestone is done, the family goes on it. Nothing below is optional; nothing above milestone 4 ships with it.</p>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T4.1</span><span class="t-t">App shell</span></div>
+<p class="t-b">The four-tab bar — Home · Village · + · Me — drawn by the app rather than the platform, with the accent following the scene. The <span class="h-mono">+</span> opens a native modal sheet.</p>
+<p class="t-l"><span class="t-lab">Done when</span> the bar looks identical on both platforms and every target is at least 56&nbsp;px.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T4.2</span><span class="t-t">Post model and repository</span></div>
+<p class="t-b">The post document, a paginated feed query ordered by <span class="h-mono">createdAt</span>, and a repository that serves cache first. One card widget with a type variant — not five widgets.</p>
+<p class="t-l"><span class="t-lab">Done when</span> the feed renders from disk in airplane mode with no spinner.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T4.3</span><span class="t-t">Compose an update</span></div>
+<p class="t-b">Text update posting into the feed, in the composer sheet from the prototype.</p>
+<p class="t-l"><span class="t-lab">Done when</span> a post written offline appears immediately in a "sending" state and settles when signal returns.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T4.4</span><span class="t-t">◆ Photos and the upload outbox</span></div>
+<p class="t-b">Client-side resize to a 1600px long edge plus a 400px thumbnail, upload to <span class="h-mono">/villages/{vid}/{postId}/</span>, and a persistent outbox of pending uploads that retries on connectivity. Never upload the camera original.</p>
+<p class="t-l"><span class="t-lab">Done when</span> three photos queued in airplane mode all arrive after a force-quit and a reconnect.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T4.5</span><span class="t-t">Reactions</span></div>
+<p class="t-b">Four and only four — heart, thanks-hands, smile, star. One document per user plus a transactional count on the post. No picker, no sixth option.</p>
+<p class="t-l"><span class="t-lab">Done when</span> two devices reacting simultaneously both land, and changing your reaction moves the count rather than adding one.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T4.6</span><span class="t-t">Notes</span></div>
+<p class="t-b">One threaded notes widget used on every content type, in the app's voice ("3 notes", never "comments"). Author or admin can delete.</p>
+<p class="t-l"><span class="t-lab">Done when</span> the same widget opens from a post and from a photo with no per-type branches in the UI.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T4.7</span><span class="t-t">The daily status line</span></div>
+<p class="t-b">The face row at the top of the feed, one line each, with a TTL policy on <span class="h-mono">expiresAt</span>. It never sends a notification.</p>
+<p class="t-l"><span class="t-lab">Done when</span> a status disappears on its own overnight without a cleanup job.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T4.8</span><span class="t-t">Actionable push</span></div>
+<p class="t-b">FCM plus the Firestore trigger for notes and thank-yous, with reply and thank actions on the notification itself. These are the only two senders in v1.</p>
+<p class="t-l"><span class="t-lab">Done when</span> replying from the lock screen posts a note without opening the app.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T4.9</span><span class="t-t">Day one</span></div>
+<p class="t-b">The two-member empty state from the prototype: the house carries it, three gentle prompts, and no invented activity anywhere.</p>
+<p class="t-l"><span class="t-lab">Done when</span> a brand-new village shows it and it does not look like an error.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T4.10</span><span class="t-t">◆ The 150% pass</span></div>
+<p class="t-b">Walk every v1 screen at 150% text: layouts go vertical, reaction rows collapse behind one button, targets stay at 56&nbsp;px, nothing truncates. Never cap <span class="h-mono">textScaler</span>.</p>
+<p class="t-l"><span class="t-lab">Done when</span> a screenshot of every screen at 100% and 150% sits side by side and you would hand either to your grandmother.</p>
+</div>
+
+<div class="t">
+<div class="t-h"><span class="t-id">T4.11</span><span class="t-t">Ship it to the family</span></div>
+<p class="t-b">TestFlight and an Android internal track, scheduled Firestore exports turned on, a billing alert set, and one real invitation sent to a real person.</p>
+<p class="t-l"><span class="t-lab">Done when</span> someone who did not build it posts something you did not ask them to post.</p>
+</div>
+
+<h2 class="h-sec">After v1</h2>
+<p class="h-p">Do not start milestone 5 for two weeks. Watch what the family actually does — which of recipes, routines and events they ask for first should decide the order, and one of the three may turn out not to matter at all. The three undesigned screens (Who sees me?, the printed recipe card at real size, the moderation take-down view) are worth designing during that fortnight, while the feed earns its keep.</p>
+
+</doc-page>
+
+</x-dc>
+</body>
+</html>

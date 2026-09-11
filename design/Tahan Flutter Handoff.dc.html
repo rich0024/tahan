@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/organic-b2569527-acac-4975-8b1c-c0bbf942647e/styles.css">
+<script src="_ds/organic-b2569527-acac-4975-8b1c-c0bbf942647e/_ds_bundle.js"></script>
+<script src="./doc-page.js"></script>
+<style>
+doc-page:not(:defined){visibility:hidden}
+.h-sec{font-family:var(--font-heading);font-size:23px;line-height:1.15;margin:34px 0 6px;color:var(--color-text)}
+.h-sub{font-family:var(--font-heading);font-size:16px;margin:22px 0 4px;color:var(--color-accent-700)}
+.h-kick{font-family:var(--font-body);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-2-700);margin:0 0 2px}
+.h-p{font-family:var(--font-body);font-size:12.5px;line-height:1.55;margin:0 0 9px;color:var(--color-text)}
+.h-li{font-family:var(--font-body);font-size:12.5px;line-height:1.5;margin:0 0 5px}
+.h-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;line-height:1.6;white-space:pre;background:var(--color-neutral-100);border:1px solid var(--color-accent-2-200);border-radius:14px;padding:13px 15px;margin:0 0 11px;overflow-x:hidden;break-inside:avoid;color:var(--color-text)}
+.h-tbl{width:100%;border-collapse:collapse;font-family:var(--font-body);font-size:10.5px;margin:0 0 12px}
+.h-tbl th{text-align:left;font-weight:600;padding:6px 7px;border-bottom:1.5px solid var(--color-accent-400);color:var(--color-accent-800);white-space:nowrap}
+.h-tbl td{padding:6px 7px;border-bottom:1px solid var(--color-divider);vertical-align:middle}
+.h-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px}
+.h-note{break-inside:avoid;border-radius:16px;background:var(--color-accent-2-100);padding:13px 16px;margin:0 0 12px}
+.h-sw{display:inline-block;width:13px;height:13px;border-radius:999px;vertical-align:-2px;margin-right:5px;box-shadow:inset 0 0 0 1px rgba(32,30,29,.14)}
+</style>
+</helmet>
+
+<doc-page margin="0.72in">
+
+<div class="h-kick">Tahan · developer handoff · September 2026</div>
+<h1 style="font-family:var(--font-heading);font-size:36px;line-height:1.05;margin:0 0 10px;color:var(--color-text)">Building Tahan in Flutter</h1>
+<p class="h-p" style="font-size:14px;max-width:52em">Everything in Tahan is drawn by the app: there are no photographic scene assets, no avatar images, no per-platform layout. That is deliberate — it is what lets one Flutter codebase ship an identical iOS and Android build, and it is what makes an avatar cost six bytes instead of a hosted file. This document is the contract: the theme, the two painters, the screen inventory, and the parts that must stay native.</p>
+
+<div class="h-note">
+<p class="h-p" style="margin:0"><strong>Read alongside</strong> <span class="h-mono">Tahan.dc.html</span> — the working prototype. Where this doc and the prototype disagree, the prototype is right; it is the reference implementation for spacing, copy and interaction feel.</p>
+</div>
+
+<h2 class="h-sec">1 · Theme</h2>
+<p class="h-p">Tahan has one base theme (Organic) and nine <em>scene palettes</em> that retint it. A village owns a scene; opening a village swaps the palette for the whole app, feed and chrome included. So the theme is not a constant — build it from a scene.</p>
+
+<h3 class="h-sub">1.1 Base tokens</h3>
+<table class="h-tbl">
+<thead><tr><th>Token</th><th>Value</th><th>Role in Flutter</th></tr></thead>
+<tbody>
+<tr><td>text</td><td><span class="h-sw" style="background:#201e1d"></span><span class="h-mono">#201e1d</span></td><td><span class="h-mono">colorScheme.onSurface</span> · all body copy</td></tr>
+<tr><td>bg</td><td><span class="h-sw" style="background:#f5ead8"></span><span class="h-mono">#f5ead8</span></td><td><span class="h-mono">scaffoldBackgroundColor</span></td></tr>
+<tr><td>accent</td><td><span class="h-sw" style="background:#c67139"></span><span class="h-mono">#c67139</span></td><td><span class="h-mono">colorScheme.primary</span> · fills, active tab</td></tr>
+<tr><td>accent-2</td><td><span class="h-sw" style="background:#7a8a5e"></span><span class="h-mono">#7a8a5e</span></td><td><span class="h-mono">colorScheme.secondary</span> · routines, done states</td></tr>
+<tr><td>heading font</td><td><span class="h-mono">Caprasimo</span></td><td>display + title styles only, never body</td></tr>
+<tr><td>body font</td><td><span class="h-mono">Figtree</span></td><td>everything else, 400 / 600</td></tr>
+<tr><td>radius</td><td><span class="h-mono">16</span> / <span class="h-mono">999</span></td><td>containers / buttons, chips, inputs, avatars</td></tr>
+</tbody>
+</table>
+<p class="h-p">Both faces ship with the app (<span class="h-mono">google_fonts</span> is fine in dev; vendor them for release so first paint is never unstyled). Every accent role needs a 100–900 ramp — generate it once in OKLCH from the role base on a shared lightness scale rather than hand-picking tints, so a scene swap regenerates the whole ramp for free.</p>
+
+<h3 class="h-sub">1.2 The nine scene palettes</h3>
+<p class="h-p">These are the exact values the prototype ships. <span class="h-mono">dark</span> means the scene's sky is dark enough that header content flips to light ink.</p>
+<table class="h-tbl">
+<thead><tr><th>key</th><th>Name</th><th>accent</th><th>accent-2</th><th>bg</th><th>surface</th><th>dark</th><th>drift</th></tr></thead>
+<tbody>
+<tr><td class="h-mono">night</td><td>Night sky</td><td><span class="h-sw" style="background:#c67139"></span><span class="h-mono">#c67139</span></td><td><span class="h-sw" style="background:#7a8a5e"></span><span class="h-mono">#7a8a5e</span></td><td><span class="h-sw" style="background:#f5ead8"></span><span class="h-mono">#f5ead8</span></td><td><span class="h-sw" style="background:#ebddc5"></span><span class="h-mono">#ebddc5</span></td><td>yes</td><td>fireflies</td></tr>
+<tr><td class="h-mono">forest</td><td>Forest</td><td><span class="h-sw" style="background:#6f7f52"></span><span class="h-mono">#6f7f52</span></td><td><span class="h-sw" style="background:#b06a3c"></span><span class="h-mono">#b06a3c</span></td><td><span class="h-sw" style="background:#f3efdd"></span><span class="h-mono">#f3efdd</span></td><td><span class="h-sw" style="background:#e5e5c9"></span><span class="h-mono">#e5e5c9</span></td><td>—</td><td>leaves</td></tr>
+<tr><td class="h-mono">tropical</td><td>Tropical</td><td><span class="h-sw" style="background:#d9663f"></span><span class="h-mono">#d9663f</span></td><td><span class="h-sw" style="background:#3f8a7a"></span><span class="h-mono">#3f8a7a</span></td><td><span class="h-sw" style="background:#fbf0dd"></span><span class="h-mono">#fbf0dd</span></td><td><span class="h-sw" style="background:#f3dfc4"></span><span class="h-mono">#f3dfc4</span></td><td>—</td><td>breeze</td></tr>
+<tr><td class="h-mono">desert</td><td>Desert</td><td><span class="h-sw" style="background:#c98a3c"></span><span class="h-mono">#c98a3c</span></td><td><span class="h-sw" style="background:#9c5a4a"></span><span class="h-mono">#9c5a4a</span></td><td><span class="h-sw" style="background:#f8ecd8"></span><span class="h-mono">#f8ecd8</span></td><td><span class="h-sw" style="background:#efdcba"></span><span class="h-mono">#efdcba</span></td><td>—</td><td>dust</td></tr>
+<tr><td class="h-mono">terrace</td><td>Rice terraces</td><td><span class="h-sw" style="background:#b0813f"></span><span class="h-mono">#b0813f</span></td><td><span class="h-sw" style="background:#5d8a6b"></span><span class="h-mono">#5d8a6b</span></td><td><span class="h-sw" style="background:#f4f0e0"></span><span class="h-mono">#f4f0e0</span></td><td><span class="h-sw" style="background:#e5e5cd"></span><span class="h-mono">#e5e5cd</span></td><td>—</td><td>rain</td></tr>
+<tr><td class="h-mono">savanna</td><td>Savanna</td><td><span class="h-sw" style="background:#c9662e"></span><span class="h-mono">#c9662e</span></td><td><span class="h-sw" style="background:#8a7a3e"></span><span class="h-mono">#8a7a3e</span></td><td><span class="h-sw" style="background:#f7ecd4"></span><span class="h-mono">#f7ecd4</span></td><td><span class="h-sw" style="background:#eeddb6"></span><span class="h-mono">#eeddb6</span></td><td>—</td><td>dust</td></tr>
+<tr><td class="h-mono">coast</td><td>Coast</td><td><span class="h-sw" style="background:#3f6f8a"></span><span class="h-mono">#3f6f8a</span></td><td><span class="h-sw" style="background:#c9834a"></span><span class="h-mono">#c9834a</span></td><td><span class="h-sw" style="background:#f4f1e6"></span><span class="h-mono">#f4f1e6</span></td><td><span class="h-sw" style="background:#e4e3d2"></span><span class="h-mono">#e4e3d2</span></td><td>—</td><td>breeze</td></tr>
+<tr><td class="h-mono">winter</td><td>Winter</td><td><span class="h-sw" style="background:#6f7f9a"></span><span class="h-mono">#6f7f9a</span></td><td><span class="h-sw" style="background:#8a6f5a"></span><span class="h-mono">#8a6f5a</span></td><td><span class="h-sw" style="background:#f1f1ec"></span><span class="h-mono">#f1f1ec</span></td><td><span class="h-sw" style="background:#e2e2da"></span><span class="h-mono">#e2e2da</span></td><td>—</td><td>snow</td></tr>
+<tr><td class="h-mono">blossom</td><td>Blossom</td><td><span class="h-sw" style="background:#c96b7a"></span><span class="h-mono">#c96b7a</span></td><td><span class="h-sw" style="background:#7a8a5e"></span><span class="h-mono">#7a8a5e</span></td><td><span class="h-sw" style="background:#f9eee6"></span><span class="h-mono">#f9eee6</span></td><td><span class="h-sw" style="background:#f0dbd2"></span><span class="h-mono">#f0dbd2</span></td><td>—</td><td>petals</td></tr>
+</tbody>
+</table>
+
+<h3 class="h-sub">1.3 ThemeData from a scene</h3>
+<div class="h-code">class ScenePalette {
+  final String key, name;
+  final Color accent, accent2, bg, surface;
+  final bool dark;              // dark sky → light ink in the header
+  final Drift drift;            // fireflies | leaves | breeze | dust | rain | snow | petals
+  final List&lt;GradientStop&gt; sky; // 3–4 stops, see §2.2
+  const ScenePalette({...});
+}
+
+ThemeData villageTheme(ScenePalette p) {
+  final scheme = ColorScheme.light(
+    primary: p.accent, secondary: p.accent2,
+    surface: p.surface, background: p.bg,
+    onPrimary: p.bg, onSurface: const Color(0xFF201E1D),
+  );
+  return ThemeData(
+    useMaterial3: true,
+    colorScheme: scheme,
+    scaffoldBackgroundColor: p.bg,
+    textTheme: _figtree(scheme).copyWith(
+      displayLarge: _caprasimo(34), headlineSmall: _caprasimo(21),
+      titleMedium: _caprasimo(16),
+    ),
+    cardTheme: CardTheme(
+      color: p.surface, elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        shape: const StadiumBorder(), minimumSize: const Size(0, 48)),
+    ),
+    extensions: [VillageScene(p)],   // painters read the scene from here
+  );
+}</div>
+<p class="h-p">Put the palette in a <span class="h-mono">ThemeExtension</span> (<span class="h-mono">VillageScene</span>) so the scene painter and the avatar painter can read it from <span class="h-mono">Theme.of(context)</span> without a separate provider. Switching village = rebuilding the <span class="h-mono">MaterialApp</span> theme; give it a 420&nbsp;ms <span class="h-mono">themeAnimationCurve: Curves.easeOutCubic</span> so the retint reads as the room changing, not a flash.</p>
+
+<h2 class="h-sec">2 · The scene painter</h2>
+<p class="h-p">One <span class="h-mono">CustomPainter</span> draws all nine scenes. A scene is an ordered list of flat primitives over a vertical sky gradient — no images, no blurs, no shaders.</p>
+
+<h3 class="h-sub">2.1 Authoring space</h3>
+<p class="h-p">All scene geometry is authored in a <strong>402 × 216</strong> box (the prototype's phone width × header height). Paint it into the real rect with a single uniform scale on the width, and let the drawing bleed below the box — the backdrop runs the <em>full height</em> of the app, so the sky's bottom band stretches. Anchor the layered shapes to the top of the rect and stretch only the last gradient stop.</p>
+
+<h3 class="h-sub">2.2 Primitives</h3>
+<table class="h-tbl">
+<thead><tr><th>Primitive</th><th>Fields</th><th>Flutter call</th></tr></thead>
+<tbody>
+<tr><td>rect</td><td><span class="h-mono">x y w h fill opacity radius</span></td><td><span class="h-mono">drawRRect</span></td></tr>
+<tr><td>circle</td><td><span class="h-mono">cx cy r fill opacity</span></td><td><span class="h-mono">drawCircle</span></td></tr>
+<tr><td>ellipse</td><td><span class="h-mono">cx cy rx ry rotation fill opacity</span></td><td><span class="h-mono">drawOval</span> in a rotated <span class="h-mono">save/restore</span></td></tr>
+<tr><td>path (filled)</td><td><span class="h-mono">d fill opacity</span></td><td><span class="h-mono">drawPath</span>, <span class="h-mono">PaintingStyle.fill</span></td></tr>
+<tr><td>path (stroked)</td><td><span class="h-mono">d stroke width</span></td><td><span class="h-mono">drawPath</span>, round cap + round join</td></tr>
+<tr><td>sky</td><td><span class="h-mono">stops[]</span> (offset, color)</td><td><span class="h-mono">LinearGradient</span> top→bottom</td></tr>
+</tbody>
+</table>
+<p class="h-p">Path data uses <strong>absolute commands only</strong> — <span class="h-mono">M L Q C Z</span>, no arcs, no relative <span class="h-mono">h</span>/<span class="h-mono">v</span>. That is a hard constraint, not a preference: the scaler offsets every number as an absolute x,y pair, and a relative command would be scaled as if it were a point. A twenty-line <span class="h-mono">parsePath</span> covering those five commands is all you need; run it once at startup and cache the <span class="h-mono">Path</span> objects per scene.</p>
+
+<h3 class="h-sub">2.3 Time-of-day wash</h3>
+<p class="h-p">Over the scene, one full-bleed overlay tinted by the local clock: morning warms, afternoon is neutral, evening goes amber, night goes deep blue. It is a single <span class="h-mono">drawRect</span> with a low-alpha colour — cheap, and it must be recomputed on resume, not only on cold start. Keep the four tints in the same table as the palettes so a designer can retune them in one place.</p>
+
+<h3 class="h-sub">2.4 Ambient drift</h3>
+<p class="h-p">Each scene carries one drift effect: 18–26 small shapes on a <strong>single</strong> repeating <span class="h-mono">AnimationController</span>, each with a deterministic per-index phase offset and duration (hash the index and the scene key — no <span class="h-mono">Random</span>, so it looks the same across rebuilds). Snow and petals fall and rotate; rain falls fast with a slight lean; leaves tumble; dust and breeze cross horizontally; fireflies pulse in place.</p>
+<p class="h-p">Non-negotiable: honour <span class="h-mono">MediaQuery.disableAnimationsOf(context)</span> and the app's own <em>Ambient motion</em> setting by drawing zero particles — not by slowing them. Pause the controller when the app is backgrounded or the scene is off-screen; this is the only always-running animation in the app and it must not cost battery on the lock screen.</p>
+
+<h3 class="h-sub">2.5 Glass, sill and parallax</h3>
+<p class="h-p">The window treatment sits between the scene and the content: a faint diagonal sheen across the pane, a soft vignette at the edges, and a warm ledge where the glass meets the feed. Draw all three in the same painter, above the drift. The feed scrolls over it at full speed while the scene translates at <strong>one sixth</strong> of the scroll offset — drive that from the <span class="h-mono">ScrollController</span> offset inside a <span class="h-mono">RepaintBoundary</span>, and clamp it so the scene never lifts off the top of the screen.</p>
+
+<h2 class="h-sec">3 · The avatar painter</h2>
+<p class="h-p">An avatar is <strong>six small integers</strong> and nothing else — no upload, no crop, no CDN. It is drawn from ~40 primitives on the current village's sky, which is why a face from the Winter village and one from Tropical still look like the same hand drew them.</p>
+<div class="h-code">class AvatarSpec {           // six bytes, safe to embed in any row
+  final int skin;      // 0–4
+  final int hairColor; // 0–4
+  final int top;       // 0–4  (clothes; the collar colour for a pet)
+  final int hair;      // 0–7  Short Long Bun Curls Wrap Braids Bald Cap
+  final int glasses;   // 0–3  None Round Square Readers
+  final int face;      // 0–3  None Beard Moustache Stubble
+}</div>
+<table class="h-tbl">
+<thead><tr><th>Kit</th><th>Values</th></tr></thead>
+<tbody>
+<tr><td>skins</td><td><span class="h-sw" style="background:#f4d3ae"></span><span class="h-sw" style="background:#e6b98c"></span><span class="h-sw" style="background:#cf9463"></span><span class="h-sw" style="background:#a86e44"></span><span class="h-sw" style="background:#7d4e2d"></span><span class="h-mono">f4d3ae e6b98c cf9463 a86e44 7d4e2d</span></td></tr>
+<tr><td>hair</td><td><span class="h-sw" style="background:#2e2318"></span><span class="h-sw" style="background:#5a3a22"></span><span class="h-sw" style="background:#8a6a3a"></span><span class="h-sw" style="background:#c2a06a"></span><span class="h-sw" style="background:#c9c2b8"></span><span class="h-mono">2e2318 5a3a22 8a6a3a c2a06a c9c2b8</span></td></tr>
+<tr><td>clothes</td><td><span class="h-sw" style="background:#c67139"></span><span class="h-sw" style="background:#7a8a5e"></span><span class="h-sw" style="background:#3f6f8a"></span><span class="h-sw" style="background:#c96b7a"></span><span class="h-sw" style="background:#b0813f"></span><span class="h-mono">c67139 7a8a5e 3f6f8a c96b7a b0813f</span></td></tr>
+<tr><td>ink</td><td><span class="h-sw" style="background:#201e1d"></span><span class="h-mono">201e1d</span> — eyes, brows, all line work</td></tr>
+</tbody>
+</table>
+<p class="h-p">Avatar geometry is authored in a <strong>78-unit</strong> square and painted at any size by uniform scale; the same primitives from §2.2 apply, with the same absolute-coordinates-only rule. Sizes in use: 26&nbsp;px (feed row), 34&nbsp;px (status row), 44&nbsp;px (header / village switcher), 96&nbsp;px (Me), 216&nbsp;px (the avatar editor, drawn on the full village sky). Cache each spec+size as a <span class="h-mono">ui.Picture</span> — feed rows redraw constantly and there is no reason to re-run the paint list.</p>
+<p class="h-p">A user may add <strong>one companion</strong> — dog, cat or baby — with the same six integers plus a coat index. It belongs to the user, not the village, and appears on the routines they check for it.</p>
+
+<h2 class="h-sec">4 · Screens</h2>
+<p class="h-p">Four tabs: <strong>Home · Village · + · Me</strong>. Everything posts into one warm private feed; the <span class="h-mono">+</span> is a composer sheet, not a tab destination.</p>
+<table class="h-tbl">
+<thead><tr><th>Screen</th><th>What it holds</th><th>Notes for the build</th></tr></thead>
+<tbody>
+<tr><td>Home — feed</td><td>Status row, then updates, photos, recipes, milestones and routine cards in time order</td><td>One <span class="h-mono">CustomScrollView</span> over the scene. Post types are one card widget with a variant, not five widgets.</td></tr>
+<tr><td>Header</td><td>Village name, scene sky, avatar → village switcher</td><td>Avatar tap opens the switcher sheet: villages as lit doors + scene picker.</td></tr>
+<tr><td>Composer (+)</td><td>Update · Photo · Recipe · Milestone · Routine</td><td>Native modal sheet; keep the platform's own sheet, don't restyle it.</td></tr>
+<tr><td>Village</td><td>Members, invitations, albums, cookbook, lists</td><td>Members list is admin-gated: appoint/remove admins, moderate, remove members.</td></tr>
+<tr><td>Cookbook</td><td>Bound book with a page that turns, page numbers, next recipe named on the forward edge</td><td>Recipes belong to the <em>user</em>, shared/unshared per village. "Print this card" must reach the OS print path.</td></tr>
+<tr><td>Routines</td><td>Self-reported check-offs, streaks, notes</td><td>No missed-dose alert, ever. The sheet says so in copy. Visibility: private or village-sees-streaks.</td></tr>
+<tr><td>Notes thread</td><td>Threaded notes on any update, recipe, album or milestone</td><td>Same widget everywhere; "3 notes" not "3 comments".</td></tr>
+<tr><td>Me</td><td>Avatar editor, companion, your villages, notification settings, text size</td><td>Editor is the 216&nbsp;px avatar on the village sky + six swatch/segment rows + Surprise me.</td></tr>
+<tr><td>Invitation</td><td>Pre-join screen: who is inside, what it is for, why it is safe</td><td>Deep link target; renders the inviting village's scene before the user has an account.</td></tr>
+<tr><td>Day one</td><td>Two members, nothing posted</td><td>No fake activity. The scene carries it, plus three gentle prompts.</td></tr>
+</tbody>
+</table>
+
+<h3 class="h-sub">4.1 Social rules the UI must enforce</h3>
+<ul style="margin:0 0 10px;padding-left:19px">
+<li class="h-li">Exactly <strong>four reactions</strong> — heart, thanks-hands, smile, star. No counters racing, no reaction picker, no sixth option later.</li>
+<li class="h-li">One <strong>daily status line</strong> per person; it expires, and it never sends a notification.</li>
+<li class="h-li">Push is <strong>actionable</strong> (thank-you and note from the notification itself) and rare.</li>
+<li class="h-li">One <strong>scheduled</strong> notification a week: the Sunday digest, written as a letter — the week in three numbers, two moments, and who has gone quiet.</li>
+<li class="h-li">Leaving a village takes your updates and photos with you; recipes are yours to keep or leave behind — the leave sheet must ask, not assume.</li>
+</ul>
+
+<h2 class="h-sec">5 · Accessibility &amp; text size</h2>
+<p class="h-p">Half the village is over sixty. Large text is not a mode — it is the same screens at the system's scale factor, tested to <strong>150%</strong>: layouts go vertical, reaction rows collapse behind a single button, and every hit target stays at least <strong>56&nbsp;px</strong>. Never cap <span class="h-mono">textScaler</span>, never put text in the painters, and give every drawn avatar a <span class="h-mono">Semantics</span> label with the person's name.</p>
+
+<h2 class="h-sec">6 · Platform</h2>
+<p class="h-p">Two things stay native: <strong>modal sheets</strong> and the <strong>invite share action</strong>. Everything else is drawn by the app and should be pixel-identical on iOS and Android — including the tab bar, which is a Tahan widget rather than a platform one, so the active-tab accent follows the scene.</p>
+
+<h2 class="h-sec">7 · Open before build</h2>
+<ul style="margin:0 0 10px;padding-left:19px">
+<li class="h-li"><strong>Upcoming events</strong> — event details plus planning boards (who brings what, voting on activities). Designed next session; leave a tab-agnostic slot in the feed's card variants for it.</li>
+<li class="h-li"><strong>"Who sees me?"</strong> — one screen that answers the privacy question plainly, per village.</li>
+<li class="h-li"><strong>Moderation take-down view</strong> — what an admin sees when they remove a post, and what the author is told.</li>
+<li class="h-li"><strong>Sync &amp; offline</strong> — not designed. The feed must open with content in a farmhouse kitchen with one bar; decide the local store before the first screen is coded.</li>
+</ul>
+
+</doc-page>
+
+</x-dc>
+</body>
+</html>
