@@ -115,13 +115,6 @@ class AvatarKit {
   ];
   static const List<String> glassesNames = ['None', 'Round', 'Square', 'Readers'];
   static const List<String> faceNames = ['None', 'Beard', 'Moustache', 'Stubble'];
-
-  /// Companion coats — dog, cat. A companion carries the same six integers
-  /// plus this one index. Belongs to the user, not a village.
-  static const List<Color> coats = [
-    Color(0xFFF2ECE2), Color(0xFFD6B48A), Color(0xFFA8764A),
-    Color(0xFF6B5647), Color(0xFF3A3330),
-  ];
 }
 
 class AvatarSpec {
@@ -135,49 +128,4 @@ class AvatarSpec {
     this.skin = 0, this.hairColor = 0, this.top = 0,
     this.hair = 0, this.glasses = 0, this.face = 0,
   });
-
-  AvatarSpec copyWith({
-    int? skin, int? hairColor, int? top, int? hair, int? glasses, int? face,
-  }) =>
-      AvatarSpec(
-        skin: skin ?? this.skin,
-        hairColor: hairColor ?? this.hairColor,
-        top: top ?? this.top,
-        hair: hair ?? this.hair,
-        glasses: glasses ?? this.glasses,
-        face: face ?? this.face,
-      );
-
-  /// Six ints, and nothing else, is the whole of an avatar. This is the shape
-  /// that goes into `/users/{uid}` — there is no image, no file, no upload.
-  Map<String, Object?> toMap() => {
-        'skin': skin, 'hairColor': hairColor, 'top': top,
-        'hair': hair, 'glasses': glasses, 'face': face,
-      };
-
-  factory AvatarSpec.fromMap(Map<String, Object?> map) => AvatarSpec(
-        skin: (map['skin'] as num?)?.toInt() ?? 0,
-        hairColor: (map['hairColor'] as num?)?.toInt() ?? 0,
-        top: (map['top'] as num?)?.toInt() ?? 0,
-        hair: (map['hair'] as num?)?.toInt() ?? 0,
-        glasses: (map['glasses'] as num?)?.toInt() ?? 0,
-        face: (map['face'] as num?)?.toInt() ?? 0,
-      );
-
-  @override
-  bool operator ==(Object other) =>
-      other is AvatarSpec &&
-      other.skin == skin &&
-      other.hairColor == hairColor &&
-      other.top == top &&
-      other.hair == hair &&
-      other.glasses == glasses &&
-      other.face == face;
-
-  @override
-  int get hashCode => Object.hash(skin, hairColor, top, hair, glasses, face);
-
-  @override
-  String toString() =>
-      'AvatarSpec($skin,$hairColor,$top,$hair,$glasses,$face)';
 }

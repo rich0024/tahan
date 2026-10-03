@@ -1,114 +1,143 @@
 # Where the build is
 
-Milestone 1, tickets T1.2 – T1.5, written. T1.1 is not done and has to be done
-by you — see below.
+Tahan is now a React Native app: Expo (development builds), TypeScript, Skia for
+the drawing, Reanimated for motion, React Native Firebase. The Flutter version
+is on the `flutter` branch, untouched.
 
 | Ticket | State |
 | --- | --- |
-| T1.1 Project scaffold and Firebase wiring | **yours** — needs Xcode, the FlutterFire CLI and two real devices |
-| T1.2 Theme and type | written, unverified |
-| T1.3 ◆ Paint primitives and the path parser | written with tests, unverified |
-| T1.4 ◆ AvatarPainter | written with tests, unverified |
-| T1.5 Avatar widget and picture cache | written with tests, unverified |
+| T1.1 Scaffold and Firebase wiring | config written; **you** run the bootstrap, add the Firebase files, make the device builds |
+| T1.2 Theme and type | written; pure parts tested |
+| T1.3 ◆ Primitives and path parser | written; tested |
+| T1.4 ◆ Avatar geometry | written; tested shape-for-shape against the prototype, and rendered |
+| T1.5 Avatar component and picture cache | written; not yet run on a device |
 | T1.6 – T1.8 | not started |
 
-**Unverified means unverified.** Flutter's SDK download host is blocked from
-the machine this was written on, so none of this has been compiled, analysed or
-run — not once. Treat the first `flutter analyze` as part of T1.2's definition
-of done, not a formality. The code is written carefully and the geometry is
-transcribed exactly, but expect to fix compile errors.
+## What was verified, and what was not
+
+The npm registry is blocked from the machine this was written on, so React
+Native, Expo and Skia could not be installed. What *could* run, did:
+
+- **67 tests pass** under plain Node (`npm test`):
+  - **Parity.** The prototype's own `avatar()` function is lifted out of
+    `design/Tahan.dc.html`, run as-is, and compared shape-for-shape with the port
+    for all 640 hair × glasses × face × skin combinations and all 15
+    companion/coat pairs. Five deliberate mutations (a radius, an opacity, a
+    temple-arm endpoint, an ear's rotation, the head/hair z-order) each made it
+    fail.
+  - **Bounds.** Every combination stays inside the 78-unit box, using exact
+    Bézier extrema rather than control points.
+  - **Parser.** Accepts absolute `M L Q C Z` with implicit repetition; throws on
+    every relative command, both arc forms, `H V S T`, and malformed input.
+  - **Palettes and skies** re-read `design/tahan_palettes.dart` and the prototype
+    and fail on any drift.
+  - **Ramps.** 500 is the token exactly; lightness is monotonic; hue holds
+    within 8° across every step of all eighteen ramps.
+  - **Guards** for the non-negotiables a grep can enforce (no capped text, no
+    `Math.random`, no colour literals in UI code, no photo avatars, no month grid).
+- **Type-checked strict** with TypeScript 6: the pure core, the tests and the
+  tools against real types; the React Native layer against loose stand-ins for
+  the libraries. That proves the files fit together. It does **not** prove the
+  Skia, Reanimated and Expo calls match those libraries' real signatures.
+- **Rendered.** `npm run sheet` draws the whole kit from the same layer lists and
+  through the parser; every face, companion and ramp was looked at.
+
+**Not verified:** anything that needs React Native to run — the Skia painting,
+the picture cache, the retint, the fonts, the screens. Expect the first
+`npm run typecheck` with real types to surface a few signature mismatches in
+`src/paint/skiaPaint.ts`, `src/widgets/Avatar.tsx` and
+`src/theme/SceneProvider.tsx`; those three are where the library calls live.
 
 ---
 
-## T1.1 — what you run
+## See it on your phone (five minutes, no Xcode)
 
 From this folder, on your Mac:
 
 ```sh
-# 1. Generate the platform projects around the code that is already here.
-#    --project-name keeps the package name `tahan`, which every import uses.
-flutter create --project-name tahan --org com.yourdomain \
-  --platforms ios,android --overwrite .
-
-# 2. Restore the pubspec. `flutter create --overwrite` rewrites pubspec.yaml,
-#    so put ours back before pub get.
-git checkout pubspec.yaml 2>/dev/null || true
-
-# 3. The package list from the README.
-flutter pub add firebase_core firebase_auth cloud_firestore firebase_storage \
-  firebase_messaging cloud_functions flutter_image_compress connectivity_plus \
-  shared_preferences
-
-# 4. Register both apps with Firebase.
-dart pub global activate flutterfire_cli
-flutterfire configure
-
-# 5. Emulator suite — you will use it for every backend ticket.
-npm i -g firebase-tools
-firebase init emulators   # auth, firestore, storage, functions
+npm run bootstrap     # installs the current Expo SDK, then runs the checks
+npx expo start        # scan the QR code with Expo Go
 ```
 
-Then add the init to `lib/main.dart`, which currently has a comment marking the
-spot:
+Expo Go already includes Skia and Reanimated, so the milestone-1 review screen
+runs in it. That screen has: the nine scenes as chips (tap one — the screen
+should retint over 420ms with no flash), a type specimen, both ramps, the themed
+controls, 24 faces at 96/44/26pt, every hairstyle, all sixteen
+glasses-and-beard pairs, the companions, and a 200-avatar scroll test behind a
+button. Set the phone to its largest text size and look again.
 
-```dart
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
+## T1.1 — the rest
 
-await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-```
+1. **Bundle identifier.** Replace `com.yourdomain.tahan` in `app.config.ts`.
+2. **Firebase.** In the Firebase console, add an iOS app and an Android app with
+   that identifier. Download `GoogleService-Info.plist` and
+   `google-services.json` into the project root. (Both are gitignored.
+   `app.config.ts` wires Firebase in only when both are present, so everything
+   above works before this step.)
+3. **Firebase packages:**
+   ```sh
+   npx expo install @react-native-firebase/app @react-native-firebase/auth \
+     @react-native-firebase/firestore @react-native-firebase/storage \
+     @react-native-firebase/messaging @react-native-firebase/functions
+   ```
+4. **Emulator suite**, for every backend ticket:
+   ```sh
+   npm i -g firebase-tools
+   firebase init emulators   # auth, firestore, storage, functions
+   ```
+5. **Dev builds on real devices** (needs Xcode for iOS):
+   ```sh
+   npx expo run:ios --device
+   npx expo run:android --device
+   ```
+   React Native Firebase does not run in Expo Go — from here on, use the dev build.
 
-**Done when** a debug build runs on a real iPhone and a real Android device and
-prints a successful Firebase init.
+**Done when** a dev build runs on a real iPhone and a real Android device and
+logs a successful Firebase init.
 
 ---
 
-## Verifying T1.2 – T1.5
+## Five things to decide
 
-```sh
-flutter analyze
-flutter test
-flutter run            # lands on the milestone-1 review screen
-```
+### 1. Cream on accent fails contrast in eight of nine scenes
 
-`lib/screens/debug_gallery.dart` is the throwaway screen the tickets ask for.
-It carries, in order: the nine scenes as chips (tap one — the whole screen
-should retint over 420ms with no flash of the previous accent), a type specimen
-in Caprasimo and Figtree, both OKLCH ramps as strips, the themed controls, 24
-faces at 96 / 44 / 26px, every hairstyle, all sixteen glasses-and-beard
-combinations, the companions, and a 200-avatar scroll test behind a button.
+The filled button — *I'm coming*, *Join the village*, *Send me a code* — puts
+cream text on the scene accent. Measured against WCAG AA for normal text (4.5:1):
 
-For T1.5's 60fps: `flutter run --profile` and scroll that list with the
-performance overlay on.
+| Scene | cream on 500 (the token) | cream on 600 |
+| --- | --- | --- |
+| Night | 3.38 | 4.57 |
+| Forest | 4.07 | 5.26 |
+| Tropical | 3.32 | 4.53 |
+| Desert | **2.74** | 3.81 |
+| Rice terraces | 3.25 | 4.40 |
+| Savanna | 3.63 | 4.84 |
+| Coast | 5.11 | 6.37 |
+| Winter | 3.80 | 4.99 |
+| Blossom | 3.36 | 4.54 |
 
-Delete the file when milestone 2 has a real feed.
+Only Coast passes; Desert fails even the 3:1 large-text bar. For a family app
+whose users include grandparents, I'd fix it. The code ships as designed because
+the tokens are final. The options are: fill buttons with ramp 600 (seven of
+nine pass), use ink labels on the accent, or bold the label to 18pt so the 3:1
+threshold applies. It's one line in `src/components/themed.tsx` either way.
 
----
+### 2. Black hair disappears into the night sky
 
-## Three things to decide
+The top of the Night sky is `#2E2B25`; the darkest hair is `#2E2318`. Contrast:
+1.09. On the contact sheet, a black-haired face on Night loses the top of its
+head. Night is the first village's scene. A hairline highlight, or lifting the
+sky's top stop slightly, would fix it.
 
-### 1. The scene data uses `T`, which the parser is forbidden to accept
+### 3. The scene data uses `T`, which the parser is forbidden to accept
 
-`CLAUDE.md` says absolute `M L Q C Z` only and that the parser must throw on
-anything else. It does. But several scene paths in `Tahan.dc.html` use `T`
-(smooth quadratic) — for example:
-
-```
-M0 178 Q120 150 220 180 T402 168 L402 216 0 216Z
-M0 190 Q120 178 236 194 T402 186 L402 206 0 212Z
-```
-
-I checked all 62 layer paths in the prototype against the parser's grammar: 55
-parse clean, and exactly 7 use `T` — every one of them a rolling hill or water
-line in a scene. They will throw the moment T2.1 transcribes them.
-
-Do not relax the parser. Convert each `T` to an explicit `Q` instead: a `T`'s
-control point is the reflection of the previous control point about the current
-point, so after `Q cx cy x y`, a following `T x2 y2` becomes
-`Q (2x − cx) (2y − cy) x2 y2`. That is an exact rewrite, not an approximation.
-
-Here are all seven, already converted and checked curve-identical at eleven
-sample points along each segment. Paste these in at T2.1:
+Of the 62 layer paths in the prototype, 55 parse clean and exactly 7 use `T`
+(smooth quadratic) — every one a rolling hill or water line. They will throw the
+moment T2.1 transcribes them. Do not relax the parser; convert each `T` to an
+exact `Q` — the control point of `T` is the reflection of the previous one, so
+`Q cx cy x y  T x2 y2` becomes `Q cx cy x y  Q (2x−cx) (2y−cy) x2 y2`. All seven,
+already converted and checked curve-identical (each pair is original, then
+replacement):
 
 ```
 M0 150 Q120 138 220 152 T402 146 L402 168 0 172Z
@@ -133,48 +162,37 @@ M0 200 Q140 182 262 202 T402 196 L402 216 0 216Z
 M0 200 Q140 182 262 202 Q384 222 402 196 L402 216 0 216Z
 ```
 
-(Each pair is the original followed by its replacement.)
+The avatar geometry is clean. The Lucide icon paths in the prototype use arcs
+freely, but icons never go through this parser.
 
-The avatar geometry is clean — no `T` anywhere in it, which is why T1.4 is
-unaffected. The Lucide icon paths in the prototype markup use arcs and relative
-commands freely, but those are icons drawn by the icon package, never fed
-through this parser. There is a note to this effect at the top of
-`lib/paint/path_parser.dart`.
+### 4. Ramp step 500 is pinned to the token
 
-### 2. Ramp step 500 is pinned to the token, not to the shared lightness scale
+The README asks for a "shared lightness scale" with "500 as base". Read strictly
+those conflict — `#C67139` sits at OKLCH L ≈ 0.62, and a nominal lightness at 500
+would move the accent. So every step rides one shared normalised curve and 500
+is the token exactly (tested for all nine scenes). The curve is nine numbers at
+the top of `src/theme/oklch.ts` if you'd rather have it the other way.
 
-The README asks for ramps on a "shared lightness scale" with "500 as base". Read
-strictly those conflict: `#C67139` sits at OKLCH L ≈ 0.62, so any fixed
-scale that puts 500 at a nominal lightness would shift the accent, and the
-tokens are final.
+### 5. Drift particle counts disagree
 
-So: every step rides one shared, normalised lightness curve, and 500 is the
-source colour exactly. A test asserts `shade(500) == palette.accent` for all
-nine scenes. If you would rather have literal shared lightness at 500 and accept
-the accent moving, the curve is nine numbers at the top of
-`lib/theme/oklch.dart`.
-
-### 3. Drift particle counts disagree between README and prototype
-
-Not needed until T2.4, noted now so it is not a surprise: the README says 18–26
-shapes, the prototype uses 6 for breeze, 14 for fireflies, and 16 or 26
-otherwise. The prototype is the stated visual source of truth; the README is the
-stated source for exact numbers. Worth settling before T2.4 rather than during.
+Not needed until T2.4: the README says 18–26 shapes; the prototype uses 6 for
+breeze, 14 for fireflies, and 16 or 26 otherwise.
 
 ---
 
-## What is deliberately not here
+## Small choices made along the way
 
-- **No Firebase code.** Nothing imports it, nothing initialises it. T1.6 is the
-  first ticket that needs it.
-- **No `Random()` anywhere.** The debug grid derives its 24 specs from an index
-  hash so the grid is identical on every rebuild and "that combination is wrong"
-  is a reproducible report.
-- **No `textScaler` cap.** There is a comment in `lib/app.dart` saying so, so
-  nobody adds one later meaning well.
-- **Companions are in the painter** (dog, cat, baby, five coats) because the
-  geometry was in the same prototype function as the person. They are not wired
-  to any screen and no ticket before Me needs them.
-- **`google_fonts` is a development dependency in spirit.** Before release,
-  vendor Caprasimo and Figtree into `assets/fonts` and switch `TahanText` over,
-  so first paint is never unstyled. There is a note at the top of the pubspec.
+- **Faces move to the new sky at once during a retint** rather than fading with
+  the rest of the screen. Fading would re-record every visible face on every
+  frame of the 420ms. Worth a look on device; a crossfade is possible if the
+  snap reads badly.
+- **Avatars sit on their village's real sky** — the prototype's own gradient
+  plus the soft accent-2 hill behind the shoulders — not a generic wash. The
+  nine skies were lifted from the prototype by script and are tested against it.
+- **Chips are drawn 40pt tall with their hit area extended to 56** by `hitSlop`.
+  The brief's minimum is about where a thumb lands.
+- **The picture cache never disposes pictures**: a mounted canvas may still hold
+  one, and Skia frees them when nothing references them.
+- **`package.json` has no dependency versions.** The bootstrap installs the
+  current Expo SDK and lets `expo install` choose every other version to match,
+  so nothing was guessed from here.
