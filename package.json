@@ -1,0 +1,19 @@
+{
+  "name": "tahan",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "bootstrap": "sh scripts/bootstrap.sh",
+    "start": "expo start",
+    "ios": "expo run:ios",
+    "android": "expo run:android",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm test",
+    "sheet": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/renderSheet.ts avatar-sheet.html"
+  }
+}
