@@ -63,8 +63,13 @@ packages, use `npx expo install --fix`.
 From this folder, on your Mac:
 
 ```sh
-npx expo start        # scan the QR code with Expo Go
+npx expo start --go   # scan the QR code with Expo Go
 ```
+
+`--go` matters: because `expo-dev-client` is installed (for Firebase later),
+plain `npx expo start` targets a Tahan development build, which isn't on your
+phone until T1.1's device build. Install Expo Go from the App Store or Google
+Play first.
 
 Expo Go already includes Skia and Reanimated, so the milestone-1 review screen
 runs in it. That screen has: the nine scenes as chips (tap one — the screen
