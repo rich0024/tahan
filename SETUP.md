@@ -15,10 +15,10 @@ is on the `flutter` branch, untouched.
 
 ## What was verified, and what was not
 
-The npm registry is blocked from the machine this was written on, so React
-Native, Expo and Skia could not be installed. What *could* run, did:
-
-- **67 tests pass** under plain Node (`npm test`):
+- **Type-checked against the real libraries.** `npm run typecheck` passes with
+  TypeScript 6 against the actual React Native 0.86, Expo SDK 57, Skia and
+  Reanimated 4 types — app code, tests, tools and config.
+- **67 tests pass** (`npm test`):
   - **Parity.** The prototype's own `avatar()` function is lifted out of
     `design/Tahan.dc.html`, run as-is, and compared shape-for-shape with the port
     for all 640 hair × glasses × face × skin combinations and all 15
@@ -35,18 +35,26 @@ Native, Expo and Skia could not be installed. What *could* run, did:
     within 8° across every step of all eighteen ramps.
   - **Guards** for the non-negotiables a grep can enforce (no capped text, no
     `Math.random`, no colour literals in UI code, no photo avatars, no month grid).
-- **Type-checked strict** with TypeScript 6: the pure core, the tests and the
-  tools against real types; the React Native layer against loose stand-ins for
-  the libraries. That proves the files fit together. It does **not** prove the
-  Skia, Reanimated and Expo calls match those libraries' real signatures.
 - **Rendered.** `npm run sheet` draws the whole kit from the same layer lists and
   through the parser; every face, companion and ramp was looked at.
 
-**Not verified:** anything that needs React Native to run — the Skia painting,
-the picture cache, the retint, the fonts, the screens. Expect the first
-`npm run typecheck` with real types to surface a few signature mismatches in
-`src/paint/skiaPaint.ts`, `src/widgets/Avatar.tsx` and
-`src/theme/SceneProvider.tsx`; those three are where the library calls live.
+**Not yet verified:** the app running — Skia actually painting, the picture
+cache, the retint, the fonts, the screens on a device. That is the next step.
+
+## Installing
+
+Dependency versions are pinned in `package.json` and `package-lock.json` — a
+matched Expo SDK 57 set. On a fresh clone:
+
+```sh
+npm install
+npm run check
+```
+
+`npm run bootstrap` is only for moving to a new Expo SDK. **Never run
+`npm audit fix`** (with or without `--force`): it moves packages one at a time,
+ignoring that Expo pins them as a set, and breaks the install. To update
+packages, use `npx expo install --fix`.
 
 ---
 
@@ -55,7 +63,6 @@ the picture cache, the retint, the fonts, the screens. Expect the first
 From this folder, on your Mac:
 
 ```sh
-npm run bootstrap     # installs the current Expo SDK, then runs the checks
 npx expo start        # scan the QR code with Expo Go
 ```
 
