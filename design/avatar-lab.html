@@ -99,6 +99,8 @@ input[type="color"] { width: 40px; height: 32px; border: 1px solid var(--line); 
 .modes button { min-height: 40px; padding: 0 18px; border: 0; border-radius: var(--r-pill); background: transparent; font-weight: 600; cursor: pointer; }
 .modes button[aria-pressed="true"] { background: var(--ink); color: var(--raised); }
 .via { font-weight: 400; color: var(--ink-soft); }
+.odd { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; min-height: 44px; cursor: pointer; }
+.odd input { width: 22px; height: 22px; accent-color: var(--accent); }
 .feed { display: grid; gap: 8px; }
 .feed-row { display: flex; align-items: center; gap: 10px; background: var(--raised); border-radius: 12px; padding: 8px 12px; min-width: 0; }
 .feed-row p { margin: 0; font-size: 14px; min-width: 0; }
@@ -748,7 +750,7 @@ const PET = (() => {
     o += E(100, 118, 25, 19, s.markings === 2 ? m : f.muzzle);
     o += E(100, 128, 18, 9, f.shade, { opacity: 0.25 });
     // eyes
-    o += eyesRound(84, 116, 92, s.eyeColor, small, k);
+    o += eyesRound(84, 116, 92, s.eyeColor, s.eyeColor2 ?? s.eyeColor, small, k);
     if (!small) o += both('M77 82 C80 79 85 79 88 81', (d) => S(d, f.deep, 3, { opacity: 0.6 }));
     // nose and mouth
     o += P('M89 108 C89 101 111 101 111 108 C111 115 104 118 100 118 C96 118 89 115 89 108 Z', INK);
@@ -784,7 +786,8 @@ const PET = (() => {
     if (s.markings === 3) o += P('M86 146 C86 126 92 116 100 116 C108 116 114 126 114 146 Z', m);
     o += '</g>';
     // eyes — almond with a slit pupil
-    o += both('M74 100 C78 92 90 92 94 100 C90 108 78 108 74 100 Z', (d) => P(d, small ? INK : s.eyeColor));
+    const almond = 'M74 100 C78 92 90 92 94 100 C90 108 78 108 74 100 Z';
+    o += P(almond, small ? INK : s.eyeColor) + P(mirror(almond), small ? INK : (s.eyeColor2 ?? s.eyeColor));
     if (!small) {
       o += E(84, 100, 1.9, 5.6, INK) + E(116, 100, 1.9, 5.6, INK);
       o += C(87, 97.5, 1.4, WHITE) + C(119, 97.5, 1.4, WHITE);
@@ -847,9 +850,9 @@ const PET = (() => {
   }
 
   // ---------------------------------------------------- shared helpers
-  function eyesRound(xl, xr, y, iris, small, k) {
+  function eyesRound(xl, xr, y, irisL, irisR, small, k) {
     if (small) return C(xl, y, 5, INK) + C(xr, y, 5, INK) + C(xl + 1.5, y - 1.6, 1.4, WHITE) + C(xr + 1.5, y - 1.6, 1.4, WHITE);
-    return [xl, xr].map((x) => C(x, y, 7, iris) + C(x, y, 4.2, INK) + C(x + 2.3, y - 2.4, 2, WHITE) + C(x - 2, y + 2.4, 0.9, WHITE, { opacity: 0.8 })
+    return [[xl, irisL], [xr, irisR]].map(([x, iris]) => C(x, y, 7, iris) + C(x, y, 4.2, INK) + C(x + 2.3, y - 2.4, 2, WHITE) + C(x - 2, y + 2.4, 0.9, WHITE, { opacity: 0.8 })
       + S(`M${x - 7.5} ${y - 2} C${x - 4} ${y - 8} ${x + 4} ${y - 8} ${x + 7.5} ${y - 2}`, INK, 2.2)).join('');
   }
 
@@ -897,15 +900,15 @@ const PET = (() => {
 
 
 const PETS = [
-  { name: 'Bandit', kind: 0, mainColor: '#D9A55C', skin: 0.3, hairColor: '#3A2A20', style: 0, markings: 2, markingColor: '#F4EFE7', eyeColor: '#6B4A2E', accessory: 1, accessoryColor: '#C67139' },
-  { name: 'Kuya',   kind: 0, mainColor: '#4F3324', skin: 0.3, hairColor: '#3A2A20', style: 1, markings: 0, markingColor: '#D9A55C', eyeColor: '#6B4A2E', accessory: 2, accessoryColor: '#3F6F8A' },
-  { name: 'Pepper', kind: 0, mainColor: '#F4EFE7', skin: 0.3, hairColor: '#3A2A20', style: 2, markings: 1, markingColor: '#4F3324', eyeColor: '#3A2A20', accessory: 3, accessoryColor: '#C96B7A' },
-  { name: 'Miso',   kind: 1, mainColor: '#B8692F', skin: 0.3, hairColor: '#3A2A20', style: 0, markings: 1, markingColor: '#7A4E2E', eyeColor: '#B9A23A', accessory: 1, accessoryColor: '#3F6F8A' },
-  { name: 'Luna',   kind: 1, mainColor: '#252220', skin: 0.3, hairColor: '#3A2A20', style: 1, markings: 3, markingColor: '#F4EFE7', eyeColor: '#8DA34A', accessory: 3, accessoryColor: '#C96B7A' },
-  { name: 'Tofu',   kind: 1, mainColor: '#F4EFE7', skin: 0.3, hairColor: '#3A2A20', style: 0, markings: 2, markingColor: '#8E8A86', eyeColor: '#3E6E8E', accessory: 0, accessoryColor: '#C67139' },
-  { name: 'Baby Ana', kind: 2, mainColor: '#F0B8C0', skin: 0.45, hairColor: '#3A2A20', style: 0, markings: 0, markingColor: '#F4EFE7', eyeColor: '#3A2A20', accessory: 1, accessoryColor: '#C96B7A' },
-  { name: 'Baby Leo', kind: 2, mainColor: '#BCD8E0', skin: 0.15, hairColor: '#D9AB60', style: 1, markings: 0, markingColor: '#F4EFE7', eyeColor: '#3A2A20', accessory: 3, accessoryColor: '#7A8A5E' },
-  { name: 'Baby Kai', kind: 2, mainColor: '#D9A55C', skin: 0.8, hairColor: '#1E1916', style: 2, markings: 0, markingColor: '#F4EFE7', eyeColor: '#3A2A20', accessory: 2, accessoryColor: '#5D8A6B' },
+  { name: 'Bandit', kind: 0, mainColor: '#D9A55C', skin: 0.3, hairColor: '#3A2A20', style: 0, markings: 2, markingColor: '#F4EFE7', eyeColor: '#6B4A2E', eyeColor2: '#6B4A2E', accessory: 1, accessoryColor: '#C67139' },
+  { name: 'Kuya',   kind: 0, mainColor: '#4F3324', skin: 0.3, hairColor: '#3A2A20', style: 1, markings: 0, markingColor: '#D9A55C', eyeColor: '#6B4A2E', eyeColor2: '#7FB2D9', accessory: 2, accessoryColor: '#3F6F8A' },
+  { name: 'Pepper', kind: 0, mainColor: '#F4EFE7', skin: 0.3, hairColor: '#3A2A20', style: 2, markings: 1, markingColor: '#4F3324', eyeColor: '#3A2A20', eyeColor2: '#3A2A20', accessory: 3, accessoryColor: '#C96B7A' },
+  { name: 'Miso',   kind: 1, mainColor: '#B8692F', skin: 0.3, hairColor: '#3A2A20', style: 0, markings: 1, markingColor: '#7A4E2E', eyeColor: '#B9A23A', eyeColor2: '#B9A23A', accessory: 1, accessoryColor: '#3F6F8A' },
+  { name: 'Luna',   kind: 1, mainColor: '#252220', skin: 0.3, hairColor: '#3A2A20', style: 1, markings: 3, markingColor: '#F4EFE7', eyeColor: '#8DA34A', eyeColor2: '#8DA34A', accessory: 3, accessoryColor: '#C96B7A' },
+  { name: 'Tofu',   kind: 1, mainColor: '#F4EFE7', skin: 0.3, hairColor: '#3A2A20', style: 0, markings: 2, markingColor: '#8E8A86', eyeColor: '#3E6E8E', eyeColor2: '#3E6E8E', accessory: 0, accessoryColor: '#C67139' },
+  { name: 'Baby Ana', kind: 2, mainColor: '#F0B8C0', skin: 0.45, hairColor: '#3A2A20', style: 0, markings: 0, markingColor: '#F4EFE7', eyeColor: '#3A2A20', eyeColor2: '#3A2A20', accessory: 1, accessoryColor: '#C96B7A' },
+  { name: 'Baby Leo', kind: 2, mainColor: '#BCD8E0', skin: 0.15, hairColor: '#D9AB60', style: 1, markings: 0, markingColor: '#F4EFE7', eyeColor: '#3A2A20', eyeColor2: '#3A2A20', accessory: 3, accessoryColor: '#7A8A5E' },
+  { name: 'Baby Kai', kind: 2, mainColor: '#D9A55C', skin: 0.8, hairColor: '#1E1916', style: 2, markings: 0, markingColor: '#F4EFE7', eyeColor: '#3A2A20', eyeColor2: '#3A2A20', accessory: 2, accessoryColor: '#5D8A6B' },
 ];
 
 const SKIES = [
@@ -923,7 +926,7 @@ const EYE_COLOURS = ['#3A2A20', '#6B4A2E', '#8A6A3A', '#4E7A52', '#3E6E8E', '#7C
 const CLOTH_COLOURS = ['#C67139', '#7A8A5E', '#3F6F8A', '#C96B7A', '#B0813F', '#F2ECE2', '#2E3440', '#D9663F'];
 const FRAME_COLOURS = ['#1E1916', '#4A4038', '#7A2E3A', '#B0813F', '#C67139', '#C9C2B8'];
 const EXTRA_COLOURS = ['#D9A441', '#C9C2B8', '#C96B7A', '#3F6F8A', '#7A8A5E', '#F2ECE2'];
-const PET_EYES = ['#6B4A2E', '#3A2A20', '#C9822E', '#B9A23A', '#8DA34A', '#3E6E8E'];
+const PET_EYES = ['#6B4A2E', '#3A2A20', '#C9822E', '#B9A23A', '#8DA34A', '#3E6E8E', '#7FB2D9'];
 const MARK_COLOURS = ['#F4EFE7', '#EBD9B8', '#D9A55C', '#B8692F', '#7A4E2E', '#8E8A86', '#252220'];
 const ONESIE_COLOURS = ['#F0B8C0', '#BCD8E0', '#F2ECE2', '#D9A55C', '#7A8A5E', '#C96B7A'];
 
@@ -936,6 +939,7 @@ const strip = ({ name, ...rest }) => rest;
 let mode = store.get('mode', 'person');
 let spec = { ...strip(PRESETS[0]), ...store.get('spec', {}) };
 let pet = { ...strip(PETS[0]), ...store.get('pet', {}) };
+if (!pet.eyeColor2) pet.eyeColor2 = pet.eyeColor;
 let hairT = store.get('hairT', 0.95);
 let furT = store.get('furT', 0.3);
 let babyHairT = store.get('babyHairT', 0.15);
@@ -991,7 +995,8 @@ function petParts() {
         hint: 'White, cream, gold, ginger, brown, chocolate, grey, black — or any colour.' },
       { key: 'style', title: k === 0 ? 'Ears' : 'Coat', options: PET.STYLES[k] },
       { key: 'markings', title: 'Markings', options: PET.MARKINGS[k], colour: swatches('Colour', 'markingColor', MARK_COLOURS) },
-      { key: 'eyes', title: 'Eyes', colour: swatches('Colour', 'eyeColor', PET_EYES) },
+      { key: 'eyes', title: 'Eyes', colour: swatches(oddEyes() ? 'Left eye' : 'Colour', 'eyeColor', PET_EYES),
+        colour2: oddEyes() ? swatches('Right eye', 'eyeColor2', PET_EYES) : null, oddToggle: true },
       { key: 'accessory', title: 'Extras', options: PET.ACCESSORIES[k], colour: swatches('Colour', 'accessoryColor', EXTRA_COLOURS) },
     );
   }
@@ -999,6 +1004,8 @@ function petParts() {
 }
 
 let PARTS = [];
+let odd = null; // remembers the switch even when both eyes happen to match
+const oddEyes = () => (odd ?? (pet.eyeColor2 && pet.eyeColor2.toUpperCase() !== pet.eyeColor.toUpperCase()));
 let observer = null;
 
 function buildKit() {
@@ -1009,12 +1016,14 @@ function buildKit() {
       <div class="part-head"><h2 id="h-${p.key}">${p.title}</h2><span class="picked" id="picked-${p.key}"></span></div>
       ${p.options ? `<div class="thumbs" id="thumbs-${p.key}" role="group" aria-label="${p.title} style"></div>` : ''}
       ${p.colour ? colourRow(p) : ''}
+      ${p.oddToggle ? `<label class="odd"><input type="checkbox" id="oddEyes" ${oddEyes() ? 'checked' : ''}> Different colours for each eye</label>` : ''}
+      ${p.colour2 ? colourRow({ key: p.key + '2', colour: p.colour2 }) : ''}
       ${p.hint ? `<p class="hint">${p.hint}</p>` : ''}
     </section>`).join('');
 
-  for (const p of PARTS) {
+  const rows = PARTS.flatMap((p) => [p.colour && { key: p.key, colour: p.colour }, p.colour2 && { key: p.key + '2', colour: p.colour2 }].filter(Boolean));
+  for (const p of rows) {
     const c = p.colour;
-    if (!c) continue;
     const id = 'c-' + p.key;
     if (c.type === 'range') {
       const r = $(id);
@@ -1025,12 +1034,23 @@ function buildKit() {
     } else {
       $(id).addEventListener('click', (e) => {
         const b = e.target.closest('[data-colour]');
-        if (b) { cur()[c.field] = b.dataset.colour; render(); }
+        if (b) { setColour(c.field, b.dataset.colour); render(); }
       });
-      $(id + 'Custom').addEventListener('input', (e) => { cur()[c.field] = e.target.value.toUpperCase(); render(); });
+      $(id + 'Custom').addEventListener('input', (e) => { setColour(c.field, e.target.value.toUpperCase()); render(); });
     }
   }
+  if ($('oddEyes')) $('oddEyes').addEventListener('change', (e) => {
+    odd = e.target.checked;
+    if (!odd) pet.eyeColor2 = pet.eyeColor;
+    buildKit(); render();
+  });
   buildJump();
+}
+
+/** Set a colour; with matching eyes, the left eye's colour is both eyes' colour. */
+function setColour(field, value) {
+  cur()[field] = value;
+  if (mode === 'pet' && field === 'eyeColor' && !oddEyes()) pet.eyeColor2 = value;
 }
 
 function colourRow(p) {
@@ -1064,6 +1084,11 @@ function render() {
   $('sizes').innerHTML = [96, 44, 34, 26].map((s) => `<figure>${draw(o, s, `At ${s} points, as on the ${USES[s]}`)}<figcaption>${USES[s]}<br>${s}</figcaption></figure>`).join('');
 
   for (const p of PARTS) {
+    if (p.colour2) {
+      const id2 = 'c-' + p.key + '2';
+      for (const b of $(id2).querySelectorAll('[data-colour]')) b.setAttribute('aria-pressed', String(b.dataset.colour.toUpperCase() === String(o[p.colour2.field]).toUpperCase()));
+      $(id2 + 'Custom').value = toSix(o[p.colour2.field]);
+    }
     if (p.options) {
       $('thumbs-' + p.key).innerHTML = p.options.map((name, i) => {
         const variant = mode === 'pet' && p.key === 'kind' ? fitPet({ ...o, kind: i }) : { ...o, [p.key]: i };
@@ -1150,7 +1175,7 @@ $('pets').addEventListener('click', (e) => {
   const b = e.target.closest('[data-pet]');
   if (!b) return;
   pet = strip(PETS[+b.dataset.pet]); furT = nearestT(PET.FUR, pet.mainColor); babyHairT = nearestT(FACE.HAIR, pet.hairColor);
-  mode = 'pet'; buildKit(); render(); toEditor();
+  odd = null; mode = 'pet'; buildKit(); render(); toEditor();
 });
 $('surprise').addEventListener('click', () => {
   const pick = (n) => Math.floor(Math.random() * n);
@@ -1166,11 +1191,14 @@ $('surprise').addEventListener('click', () => {
   } else {
     const kind = pet.kind;
     furT = Math.random(); babyHairT = Math.random();
+    odd = null;
     pet = fitPet({
       kind, mainColor: kind === 2 ? one(ONESIE_COLOURS) : FACE.along(PET.FUR, furT), skin: Math.random(), hairColor: FACE.along(FACE.HAIR, babyHairT),
       style: pick(4), markings: Math.random() < 0.4 ? 0 : pick(4), markingColor: one(MARK_COLOURS), eyeColor: one(PET_EYES),
+      eyeColor2: null,
       accessory: Math.random() < 0.3 ? 0 : pick(4), accessoryColor: one(EXTRA_COLOURS),
     });
+    pet.eyeColor2 = Math.random() < 0.15 ? one(PET_EYES) : pet.eyeColor;
   }
   buildKit(); render();
 });

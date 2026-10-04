@@ -88,7 +88,7 @@ function dog(s: CompanionSpec, small: boolean, k: number): Layer[] {
 
   o.push(E(100, 118, 25, 19, null, s.markings === 2 ? m : f.muzzle));
   o.push(E(100, 128, 18, 9, null, f.shade, 0.25));
-  o.push(...roundEyes(84, 116, 92, s.eyeColor, small));
+  o.push(...roundEyes(84, 116, 92, s.eyeColor, s.eyeColor2, small));
   if (!small) o.push(...both('M77 82 C80 79 85 79 88 81', (d) => [PS(d, f.deep, 3, 0.6)]));
 
   o.push(P('M89 108 C89 101 111 101 111 108 C111 115 104 118 100 118 C96 118 89 115 89 108 Z', INK));
@@ -123,8 +123,9 @@ function cat(s: CompanionSpec, small: boolean, k: number): Layer[] {
   if (s.markings === 3) inside.push(P('M86 146 C86 126 92 116 100 116 C108 116 114 126 114 146 Z', m));
   o.push(G(inside, { clip: CAT_HEAD }));
 
-  // Almond eyes with a slit pupil.
-  o.push(...both('M74 100 C78 92 90 92 94 100 C90 108 78 108 74 100 Z', (d) => [P(d, small ? INK : s.eyeColor)]));
+  // Almond eyes with a slit pupil, each its own colour.
+  const almond = 'M74 100 C78 92 90 92 94 100 C90 108 78 108 74 100 Z';
+  o.push(P(almond, small ? INK : s.eyeColor), P(mirror(almond), small ? INK : s.eyeColor2));
   if (!small) {
     o.push(E(84, 100, 1.9, 5.6, null, INK), E(116, 100, 1.9, 5.6, null, INK));
     o.push(C(87, 97.5, 1.4, WHITE), C(119, 97.5, 1.4, WHITE));
@@ -192,9 +193,9 @@ function baby(s: CompanionSpec, small: boolean, k: number): Layer[] {
 
 // ---------------------------------------------------------------------------
 
-function roundEyes(xl: number, xr: number, y: number, iris: string, small: boolean): Layer[] {
+function roundEyes(xl: number, xr: number, y: number, irisL: string, irisR: string, small: boolean): Layer[] {
   if (small) return [C(xl, y, 5, INK), C(xr, y, 5, INK), C(xl + 1.5, y - 1.6, 1.4, WHITE), C(xr + 1.5, y - 1.6, 1.4, WHITE)];
-  return [xl, xr].flatMap((x) => [
+  return ([[xl, irisL], [xr, irisR]] as const).flatMap(([x, iris]) => [
     C(x, y, 7, iris), C(x, y, 4.2, INK), C(x + 2.3, y - 2.4, 2, WHITE), C(x - 2, y + 2.4, 0.9, WHITE, 0.8),
     PS(`M${x - 7.5} ${y - 2} C${x - 4} ${y - 8} ${x + 4} ${y - 8} ${x + 7.5} ${y - 2}`, INK, 2.2),
   ]);
@@ -265,7 +266,7 @@ export function warmCompanionPaths(): number {
   const seen = new Set<string>([DOG_HEAD, CAT_HEAD, BABY_HEAD]);
   const base: CompanionSpec = {
     kind: 0, mainColor: '#D9A55C', skin: 0.3, hairColor: '#3A2A20', style: 0, markings: 0,
-    markingColor: '#F4EFE7', eyeColor: '#6B4A2E', accessory: 0, accessoryColor: '#C67139',
+    markingColor: '#F4EFE7', eyeColor: '#6B4A2E', eyeColor2: '#6B4A2E', accessory: 0, accessoryColor: '#C67139',
   };
   for (const kind of [COMPANION_DOG, COMPANION_CAT, COMPANION_BABY]) {
     for (let style = 0; style < 4; style++) {

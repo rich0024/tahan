@@ -77,6 +77,25 @@ describe('geometry', () => {
   });
 });
 
+describe('odd eyes', () => {
+  const irises = (s: CompanionSpec) => new Set(flatten(companionLayers(s))
+    .filter((l) => (l.kind === 'circle' && l.r === 7) || (l.kind === 'fillPath' && l.d.includes('C90 108 78 108') || (l.kind === 'fillPath' && l.d.includes('C110 108 122 108'))))
+    .map((l) => (l.kind === 'circle' || l.kind === 'fillPath' ? l.fill : '')));
+
+  test('each eye takes its own colour, for dogs and cats', () => {
+    for (const kind of [0, 1]) {
+      assert.deepEqual(irises(spec({ kind, eyeColor: '#6B4A2E', eyeColor2: '#7FB2D9' })), new Set(['#6B4A2E', '#7FB2D9']), CompanionKit.kinds[kind]);
+      assert.deepEqual(irises(spec({ kind, eyeColor: '#6B4A2E', eyeColor2: '#6B4A2E' })), new Set(['#6B4A2E']), CompanionKit.kinds[kind]);
+    }
+  });
+
+  test('the second colour is on the right, as you look at them', () => {
+    const dog = flatten(companionLayers(spec({ kind: 0, eyeColor: '#6B4A2E', eyeColor2: '#7FB2D9' })));
+    const blue = dog.find((l) => l.kind === 'circle' && l.fill === '#7FB2D9');
+    assert.ok(blue && blue.kind === 'circle' && blue.cx > 100);
+  });
+});
+
 describe('detail', () => {
   test('small companions drop detail', () => {
     for (const { name, ...s } of sampleCompanions) {
@@ -92,9 +111,9 @@ describe('detail', () => {
 });
 
 describe('the spec', () => {
-  test('is exactly ten small fields', () => {
+  test('is exactly eleven small fields', () => {
     const map = companionToMap(defaultCompanion);
-    assert.equal(Object.keys(map).length, 10);
+    assert.equal(Object.keys(map).length, 11);
     for (const v of Object.values(map)) assert.ok(typeof v === 'number' || /^#[0-9A-F]{6}$/i.test(v));
   });
 
@@ -117,6 +136,12 @@ describe('the spec', () => {
     assert.equal(s.accessoryColor, defaultCompanion.accessoryColor);
     assert.doesNotThrow(() => companionLayers(s));
     assert.deepEqual(companionFromMap({}), fitCompanion(defaultCompanion));
+  });
+
+  test('a companion saved before odd eyes existed gets matching eyes', () => {
+    const { eyeColor2: _unused, ...old } = companionToMap(defaultCompanion);
+    const s = companionFromMap(old);
+    assert.equal(s.eyeColor2, s.eyeColor);
   });
 
   test('cache keys differ by kind', () => {
