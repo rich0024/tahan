@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm test",
     "sheet": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/renderSheet.ts avatar-sheet.html",
-    "go": "expo start --go"
+    "go": "expo start --go",
+    "test:rules": "firebase emulators:exec --only firestore,storage --project demo-tahan \"node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test --test-concurrency=1 test-rules/*.test.ts\""
   },
   "dependencies": {
     "@expo-google-fonts/caprasimo": "^0.4.0",

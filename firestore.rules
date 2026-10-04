@@ -2,30 +2,358 @@ rules_version = '2';
 
 // Tahan — Firestore rules.
 //
-// Milestone 1 has one collection: /users/{uid}, readable and writable only by
-// that person. Everything else is closed. Milestone 3 (T3.1) adds villages,
-// written once against membership, with tests run on the emulator.
+// A village is the permission boundary: everything that isn't a person's own
+// document lives under /villages/{villageId}/, and every rule there is
+// written against membership. Three tests in test-rules/ are the product's
+// whole promise — a non-member cannot read a village's posts, a member cannot
+// appoint an admin, a member cannot edit another member's post — and the
+// rest of the suite covers every other path.
+//
+// Writes that must stay consistent across documents go through Cloud
+// Functions, which bypass these rules: redeeming an invite, leaving or
+// removing someone (the deletion table in design/backend.md), moderation
+// records, member counts, and refreshing a member's copied name and face.
+//
+// Where two people can act at once, each person gets their own document —
+// reactions, notes, statuses, check-ins, bring-rows, RSVPs, "I'm in" — never
+// an array, which would lose a claim made offline.
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ------------------------------------------------------------- helpers
 
     function signedIn() {
       return request.auth != null;
     }
 
-    match /users/{uid} {
-      allow read, delete: if signedIn() && request.auth.uid == uid;
-      // The phone number is never stored here; only these fields exist.
-      allow create: if signedIn() && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(
-             ['displayName', 'avatar', 'companion', 'villages', 'textScale', 'createdAt'])
-        && request.resource.data.createdAt == request.time;
-      allow update: if signedIn() && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(
-             ['displayName', 'avatar', 'companion', 'villages', 'textScale', 'createdAt'])
-        && request.resource.data.createdAt == resource.data.createdAt;
+    function me() {
+      return request.auth.uid;
     }
 
+    function villagePath(vid) {
+      return /databases/$(database)/documents/villages/$(vid);
+    }
+
+    function memberPath(vid) {
+      return /databases/$(database)/documents/villages/$(vid)/members/$(request.auth.uid);
+    }
+
+    // One document read per evaluation. Worth it for rules you can read.
+    function isMember(vid) {
+      return signedIn() && exists(memberPath(vid));
+    }
+
+    function isAdmin(vid) {
+      return isMember(vid) && get(memberPath(vid)).data.role == 'admin';
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function changed() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    function onlyChanges(keys) {
+      return changed().hasOnly(keys);
+    }
+
+    function isText(v, max) {
+      return v is string && v.size() <= max;
+    }
+
+    // A count that moved by at most one, and never below zero.
+    function nudged(now, was) {
+      return now is int && now >= 0 && (now - was) <= 1 && (was - now) <= 1;
+    }
+
+    // The nine scenes.
+    function isScene(k) {
+      return k in ['night', 'forest', 'tropical', 'desert', 'terrace', 'savanna', 'coast', 'winter', 'blossom'];
+    }
+
+    // ------------------------------------------------------------- people
+
+    // Your own document: read and write only yours. `villages` is written
+    // by functions alone — it's never the source of membership, but a
+    // person must not be able to add a village to it themselves.
+    match /users/{uid} {
+      allow read, delete: if signedIn() && me() == uid;
+      allow create: if signedIn() && me() == uid
+        && incoming().keys().hasOnly(['displayName', 'avatar', 'companion', 'villages', 'textScale', 'createdAt'])
+        && incoming().villages == []
+        && incoming().createdAt == request.time;
+      allow update: if signedIn() && me() == uid
+        && !changed().hasAny(['villages', 'createdAt'])
+        && incoming().keys().hasOnly(['displayName', 'avatar', 'companion', 'villages', 'textScale', 'createdAt']);
+
+      // Recipes belong to the person and are lent to villages.
+      match /recipes/{recipeId} {
+        allow read: if signedIn() && (me() == uid || sharedWithMe(resource.data.sharedWith));
+        allow create, update, delete: if signedIn() && me() == uid;
+      }
+    }
+
+    // A recipe shared into a village you're a member of. Recipes are shared
+    // with a handful of villages at most; each check is one membership read.
+    function sharedWithMe(villages) {
+      return villages is list && villages.size() > 0 && (
+        isMember(villages[0])
+        || (villages.size() > 1 && isMember(villages[1]))
+        || (villages.size() > 2 && isMember(villages[2]))
+      );
+    }
+
+    // ------------------------------------------------------------- invitations
+
+    // The only document outside the boundary: a newcomer must see who's
+    // inside before joining. `get` only — a token can't be listed or guessed
+    // in bulk — and only functions write them.
+    match /invites/{token} {
+      allow get: if true;
+      allow list, write: if false;
+    }
+
+    // ------------------------------------------------------------- villages
+
+    match /villages/{vid} {
+      allow read: if isMember(vid);
+
+      // Starting a village: you create it and your own admin membership in
+      // the same write (see members, below).
+      allow create: if signedIn()
+        && incoming().keys().hasOnly(['name', 'sceneKey', 'createdBy', 'memberCount', 'createdAt'])
+        && incoming().createdBy == me()
+        && incoming().memberCount == 1
+        && incoming().createdAt == request.time
+        && isText(incoming().name, 60) && incoming().name.size() > 0
+        && isScene(incoming().sceneKey)
+        && getAfter(/databases/$(database)/documents/villages/$(vid)/members/$(me())).data.role == 'admin';
+
+      // Admins rename it and choose its scene. Nothing else, and never deleted.
+      allow update: if isAdmin(vid)
+        && onlyChanges(['name', 'sceneKey'])
+        && isText(incoming().name, 60) && incoming().name.size() > 0
+        && isScene(incoming().sceneKey);
+      allow delete: if false;
+
+      // ----------------------------------------------------------- members
+
+      match /members/{uid} {
+        allow read: if isMember(vid);
+
+        // Joining is redeemInvite()'s job. The one exception: the founder's
+        // own admin membership, written in the same batch that creates the
+        // village.
+        allow create: if signedIn() && me() == uid
+          && !exists(villagePath(vid))
+          && getAfter(villagePath(vid)).data.createdBy == me()
+          && incoming().keys().hasOnly(['role', 'displayName', 'avatar', 'joinedAt', 'lastSeenAt'])
+          && incoming().role == 'admin'
+          && incoming().joinedAt == request.time;
+
+        // Only an admin changes a role — appointing or stepping someone
+        // down — and the village's founder is always an admin, so a village
+        // can never be left without one. Anyone may touch their own
+        // lastSeenAt. Names and faces are refreshed by a function.
+        allow update: if (isAdmin(vid)
+            && onlyChanges(['role'])
+            && incoming().role in ['admin', 'member']
+            && (incoming().role == 'admin' || uid != get(villagePath(vid)).data.createdBy))
+          || (isMember(vid) && me() == uid && onlyChanges(['lastSeenAt']));
+
+        // Leaving and removal run leaveVillage(), which takes everything
+        // with them — never a bare client delete.
+        allow delete: if false;
+      }
+
+      // ----------------------------------------------------------- posts
+
+      match /posts/{postId} {
+        allow read: if isMember(vid);
+
+        allow create: if isMember(vid)
+          && incoming().authorId == me()
+          && incoming().keys().hasOnly(['type', 'authorId', 'body', 'photoPaths', 'recipeRef', 'pinnedUntil', 'reactionCounts', 'noteCount', 'createdAt'])
+          && incoming().type in ['update', 'photo', 'recipe', 'milestone', 'routine', 'event']
+          && isText(incoming().body, 4000)
+          && incoming().reactionCounts == { 'heart': 0, 'hands': 0, 'smile': 0, 'star': 0 }
+          && incoming().noteCount == 0
+          && incoming().createdAt == request.time;
+
+        // The author edits their words, photos and pin. Anyone in the
+        // village may move the counts — by one, alongside their own
+        // reaction or note — and nothing else.
+        allow update: if isMember(vid) && (
+          (resource.data.authorId == me()
+            && onlyChanges(['body', 'photoPaths', 'pinnedUntil'])
+            && isText(incoming().body, 4000))
+          || (onlyChanges(['reactionCounts', 'noteCount'])
+            && incoming().reactionCounts.keys().hasOnly(['heart', 'hands', 'smile', 'star'])
+            && nudged(incoming().reactionCounts.heart, resource.data.reactionCounts.heart)
+            && nudged(incoming().reactionCounts.hands, resource.data.reactionCounts.hands)
+            && nudged(incoming().reactionCounts.smile, resource.data.reactionCounts.smile)
+            && nudged(incoming().reactionCounts.star, resource.data.reactionCounts.star)
+            && nudged(incoming().noteCount, resource.data.noteCount))
+        );
+
+        // The author, or an admin taking it down (the moderation record is
+        // written by a function).
+        allow delete: if isMember(vid) && (resource.data.authorId == me() || isAdmin(vid));
+
+        // One reaction per person, theirs alone. Four kinds, no picker.
+        match /reactions/{uid} {
+          allow read: if isMember(vid);
+          allow create, update: if isMember(vid) && me() == uid
+            && incoming().keys().hasOnly(['kind'])
+            && incoming().kind in ['heart', 'hands', 'smile', 'star'];
+          allow delete: if isMember(vid) && me() == uid;
+        }
+
+        match /notes/{noteId} {
+          allow read: if isMember(vid);
+          allow create: if isMember(vid)
+            && incoming().keys().hasOnly(['authorId', 'body', 'createdAt'])
+            && incoming().authorId == me()
+            && isText(incoming().body, 1000) && incoming().body.size() > 0
+            && incoming().createdAt == request.time;
+          allow update: if false;
+          allow delete: if isMember(vid) && (resource.data.authorId == me() || isAdmin(vid));
+        }
+      }
+
+      // ----------------------------------------------------------- statuses
+
+      // The daily line: yours alone. Never notifies; a TTL policy on
+      // expiresAt removes it.
+      match /statuses/{uid} {
+        allow read: if isMember(vid);
+        allow create, update: if isMember(vid) && me() == uid
+          && incoming().keys().hasOnly(['text', 'expiresAt'])
+          && isText(incoming().text, 120);
+        allow delete: if isMember(vid) && me() == uid;
+      }
+
+      // ----------------------------------------------------------- routines
+
+      // Self-reported. There is no field for a missed dose, and no rule
+      // allows one.
+      match /routines/{routineId} {
+        allow read: if isMember(vid) && (resource.data.visibility == 'streaks' || resource.data.ownerId == me());
+        allow create: if isMember(vid)
+          && incoming().keys().hasOnly(['title', 'ownerId', 'forCompanion', 'schedule', 'visibility'])
+          && incoming().ownerId == me()
+          && incoming().visibility in ['private', 'streaks'];
+        allow update: if isMember(vid) && resource.data.ownerId == me()
+          && onlyChanges(['title', 'forCompanion', 'schedule', 'visibility'])
+          && incoming().visibility in ['private', 'streaks'];
+        allow delete: if isMember(vid) && resource.data.ownerId == me();
+
+        match /checkins/{day} {
+          function routine() {
+            return get(/databases/$(database)/documents/villages/$(vid)/routines/$(routineId)).data;
+          }
+          allow read: if isMember(vid) && (routine().visibility == 'streaks' || routine().ownerId == me());
+          allow create: if isMember(vid)
+            && (routine().visibility == 'streaks' || routine().ownerId == me())
+            && incoming().keys().hasOnly(['byUid', 'at'])
+            && incoming().byUid == me()
+            && incoming().at == request.time;
+          allow update: if false;
+          allow delete: if isMember(vid) && resource.data.byUid == me();
+        }
+      }
+
+      // ----------------------------------------------------------- events
+
+      match /events/{eventId} {
+        function event() {
+          return get(/databases/$(database)/documents/villages/$(vid)/events/$(eventId)).data;
+        }
+
+        allow read: if isMember(vid);
+        allow create: if isMember(vid)
+          && incoming().keys().hasOnly(['title', 'startsAt', 'where', 'hostId', 'postId'])
+          && incoming().hostId == me();
+        allow update: if isMember(vid) && resource.data.hostId == me()
+          && onlyChanges(['title', 'startsAt', 'where', 'postId']);
+        allow delete: if isMember(vid) && (resource.data.hostId == me() || isAdmin(vid));
+
+        // Coming or can't: one document per person (not arrays, which lose
+        // an answer given offline).
+        match /rsvps/{uid} {
+          allow read: if isMember(vid);
+          allow create, update: if isMember(vid) && me() == uid
+            && incoming().keys().hasOnly(['answer'])
+            && incoming().answer in ['coming', 'cant'];
+          allow delete: if isMember(vid) && me() == uid;
+        }
+
+        // The bring board: one document per row. Claim an open row for
+        // yourself, or release one you hold. Nobody takes another person's
+        // row — the race the rules reject ("Nina got there first").
+        match /bring/{rowId} {
+          allow read: if isMember(vid);
+          allow create: if isMember(vid)
+            && incoming().keys().hasOnly(['group', 'title', 'askedBy', 'claimedBy', 'note'])
+            && incoming().keys().hasAll(['group', 'title', 'askedBy', 'claimedBy'])
+            && incoming().group in ['eat', 'drink', 'help']
+            && isText(incoming().title, 80)
+            && (incoming().askedBy == null || incoming().askedBy == me())
+            && (incoming().claimedBy == null || incoming().claimedBy == me());
+          allow update: if isMember(vid) && (
+            (onlyChanges(['claimedBy', 'note']) && resource.data.claimedBy == null && incoming().claimedBy == me())
+            || (onlyChanges(['claimedBy', 'note']) && resource.data.claimedBy == me() && incoming().claimedBy == null)
+            || (onlyChanges(['note']) && resource.data.claimedBy == me())
+            || ((event().hostId == me() || resource.data.askedBy == me()) && onlyChanges(['group', 'title', 'note']))
+          );
+          allow delete: if isMember(vid) && (event().hostId == me() || resource.data.askedBy == me());
+        }
+
+        // Ideas: anyone adds one; the only vote is "I'm in", one document
+        // per person. There is no way to vote against.
+        match /ideas/{ideaId} {
+          allow read: if isMember(vid);
+          allow create: if isMember(vid)
+            && incoming().keys().hasOnly(['title', 'byUid'])
+            && incoming().byUid == me()
+            && isText(incoming().title, 80);
+          allow update: if false;
+          allow delete: if isMember(vid) && (resource.data.byUid == me() || isAdmin(vid));
+
+          match /imIn/{uid} {
+            allow read: if isMember(vid);
+            allow create: if isMember(vid) && me() == uid && incoming().keys().size() == 0;
+            allow delete: if isMember(vid) && me() == uid;
+          }
+        }
+      }
+
+      // ----------------------------------------------------------- albums
+
+      match /albums/{albumId} {
+        allow read: if isMember(vid);
+        allow create: if isMember(vid)
+          && incoming().keys().hasOnly(['title', 'coverPath', 'photoPaths', 'createdBy'])
+          && incoming().createdBy == me();
+        allow update: if isMember(vid) && (resource.data.createdBy == me() || isAdmin(vid))
+          && onlyChanges(['title', 'coverPath', 'photoPaths']);
+        allow delete: if isMember(vid) && (resource.data.createdBy == me() || isAdmin(vid));
+      }
+
+      // ----------------------------------------------------------- moderation
+
+      // What was taken down, by whom and why. Admins can read it; only the
+      // take-down function writes it.
+      match /moderation/{id} {
+        allow read: if isAdmin(vid);
+        allow write: if false;
+      }
+    }
+
+    // Everything else is closed.
     match /{document=**} {
       allow read, write: if false;
     }

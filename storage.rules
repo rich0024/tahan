@@ -1,0 +1,56 @@
+rules_version = '2';
+
+// Tahan — Storage rules.
+//
+// Photos live at /villages/{vid}/{postId}/{file}, mirroring the Firestore
+// boundary, so one membership rule protects both: the check reads the same
+// member document the Firestore rules do. Each upload records its author in
+// its metadata so the author (or an admin) can remove it. Recipe photos
+// belong to the person, at /users/{uid}/...
+//
+// Photos are resized on the phone before upload — 1600px for viewing, 400px
+// thumbnails — so nothing here needs to be large.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function memberDoc(vid) {
+      return /databases/(default)/documents/villages/$(vid)/members/$(request.auth.uid);
+    }
+
+    function isMember(vid) {
+      return signedIn() && firestore.exists(memberDoc(vid));
+    }
+
+    function isAdmin(vid) {
+      return isMember(vid) && firestore.get(memberDoc(vid)).data.role == 'admin';
+    }
+
+    function isPhoto() {
+      return request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|webp)');
+    }
+
+    match /villages/{vid}/{postId}/{file} {
+      allow read: if isMember(vid);
+      allow create: if isMember(vid) && isPhoto()
+        && request.resource.metadata.authorId == request.auth.uid;
+      allow update: if false;
+      allow delete: if isMember(vid)
+        && (resource.metadata.authorId == request.auth.uid || isAdmin(vid));
+    }
+
+    match /users/{uid}/{allPaths=**} {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid && isPhoto();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

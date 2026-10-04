@@ -18,36 +18,49 @@
 import {
   connectAuthEmulator, getAuth, onAuthStateChanged, signInWithPhoneNumber, signOut,
 } from '@react-native-firebase/auth';
+import { getApp } from '@react-native-firebase/app';
 import {
-  connectFirestoreEmulator, doc, getDoc, getFirestore, serverTimestamp, setDoc, updateDoc,
+  CACHE_SIZE_UNLIMITED, connectFirestoreEmulator, doc, getDoc, initializeFirestore, serverTimestamp,
+  setDoc, updateDoc, type Firestore,
 } from '@react-native-firebase/firestore';
 
 import type { AuthBackend, PendingCode } from './backend.ts';
 import type { UserFields, UserStore } from '../data/user.ts';
 
 let emulatorsConnected = false;
+let firestore: Firestore | null = null;
+
+/**
+ * Firestore with persistence on and an unlimited cache: the feed opens from
+ * the phone's copy, writes queue on the phone and go when there's signal.
+ * Set once, before anything else touches Firestore.
+ */
+function db(): Firestore {
+  firestore ??= initializeFirestore(getApp(), { persistence: true, cacheSizeBytes: CACHE_SIZE_UNLIMITED });
+  return firestore;
+}
 
 export function firebaseBackend(): AuthBackend {
   const auth = getAuth();
-  const db = getFirestore();
+  const store = db();
 
   const emulator = process.env.EXPO_PUBLIC_EMULATOR_HOST;
   if (emulator && !emulatorsConnected) {
     connectAuthEmulator(auth, `http://${emulator}:9099`);
-    connectFirestoreEmulator(db, emulator, 8080);
+    connectFirestoreEmulator(store, emulator, 8080);
     emulatorsConnected = true;
   }
 
   const users: UserStore = {
     async get(uid) {
-      const snap = await getDoc(doc(db, 'users', uid));
+      const snap = await getDoc(doc(store, 'users', uid));
       return snap.exists() ? (snap.data() as Record<string, unknown>) : null;
     },
     async create(uid, fields: UserFields) {
-      await setDoc(doc(db, 'users', uid), { ...fields, createdAt: serverTimestamp() });
+      await setDoc(doc(store, 'users', uid), { ...fields, createdAt: serverTimestamp() });
     },
     async update(uid, fields: UserFields) {
-      await updateDoc(doc(db, 'users', uid), fields);
+      await updateDoc(doc(store, 'users', uid), fields);
     },
   };
 

@@ -20,6 +20,7 @@ is on the `flutter` branch, untouched.
 | T2.4 ◆ Ambient drift | written; reviewed by the owner |
 | T2.5 Glass and parallax | written — Fork → *The window*; the sill was removed at the owner's request; check 60fps in a release build |
 | T2.6 Scene switching retints the app | written — the scene chips on *The window* |
+| T3.1 ◆ Firestore, rules and rule tests | written; **you** run `npm run test:rules` (below), then **owner review** |
 
 ## Avatars: the detailed kit
 
@@ -51,7 +52,7 @@ colour, so any colour shades correctly.
 - **Type-checked against the real libraries.** `npm run typecheck` passes with
   TypeScript 6 against the actual React Native 0.86, Expo SDK 57, Skia and
   Reanimated 4 types — app code, tests, tools and config.
-- **143 tests pass** (`npm test`):
+- **145 tests pass** (`npm test`), plus the rules suite (`npm run test:rules`, below):
   - **Avatars.** Every path of every option parses; no hairstyle or extra
     leaves the frame; shadows are darker and highlights lighter than their base
     at the same hue; small faces drop their detail; a spec read back from the
@@ -231,6 +232,52 @@ again to reinstall. From now on start the dev server with `npx expo start`
   the emulators — codes appear in the emulator UI at localhost:4000.
 
 ---
+
+## The security rules (T3.1)
+
+`firestore.rules` and `storage.rules` cover every collection in
+`design/backend.md`. `test-rules/` proves them against the Firebase
+emulators, starting with the three tests the ticket calls the product's whole
+promise: **a non-member cannot read a village's posts, a member cannot appoint
+an admin, a member cannot edit another member's post.**
+
+The emulators run on your Mac for a demo project (`demo-tahan`), so no
+Firebase project or login is needed. Once:
+
+```sh
+brew install openjdk@21            # the Firestore emulator needs Java
+cd ~/Developer/tahan
+npm install --save-dev firebase-tools @firebase/rules-unit-testing
+```
+
+(No Homebrew? Install Java 21 from adoptium.net instead.) Then, any time:
+
+```sh
+npm run test:rules
+```
+
+It starts the emulators, runs both suites one after the other, and stops them.
+
+Where the rules are stricter than `backend.md`, on purpose:
+
+- **Nobody deletes a membership directly** — not even an admin. Leaving and
+  removal go through `leaveVillage()` (T3.8), because a bare delete would
+  leave the person's posts and photos behind, breaking "your updates leave
+  with you".
+- **RSVPs and "I'm in" are a document per person** (`events/{id}/rsvps/{uid}`,
+  `ideas/{id}/imIn/{uid}`), not the `comingUids` / `inUids` arrays in the
+  brief — CLAUDE.md's rule: arrays lose answers given offline.
+- **You can't edit the `villages` list on your own user document.** Only
+  functions write it; otherwise anyone could add a village to it.
+- **The founder is always an admin.** An admin can step other admins down,
+  never the person who started the village, so a village always has one.
+- **Counts move by one at a time.** Any member may change a post's reaction
+  or note count — that's how reacting works — but only by one, and nothing
+  else on the post.
+
+Starting a village (T3.2) is a single write of the village and the founder's
+own admin membership together; the rules allow exactly that and nothing
+else, so it works offline without a function.
 
 ## Five things to decide
 
