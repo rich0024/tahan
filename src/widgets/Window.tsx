@@ -8,7 +8,6 @@
 //                   cross-fades to the new one over the same 420ms the
 //                   colours take.
 //   HeaderFade      the bottom of the header softening into the room.
-//   Sill            the warm ledge where the glass meets the room.
 //   Veil            the scene's background behind the feed, nearly opaque.
 //   Glass           the sheen and vignette, over everything, touch-through.
 //
@@ -18,14 +17,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import {
-  Box, BoxShadow, Canvas, LinearGradient, Rect, RoundedRect, rect, rrect, vec,
+  Box, BoxShadow, Canvas, LinearGradient, Rect, rect, rrect, vec,
 } from '@shopify/react-native-skia';
 import Animated, {
   Easing, runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue, withTiming, type SharedValue,
 } from 'react-native-reanimated';
 
 import {
-  BACKDROP_SCALE, HEADER_FADE, SHEEN_ANGLE, alphaColor, gradientLine, parallaxOffset, sheen, sill, veil, vignette,
+  BACKDROP_SCALE, HEADER_FADE, SHEEN_ANGLE, alphaColor, gradientLine, parallaxOffset, sheen, veil, vignette,
 } from '../paint/window.ts';
 import type { SceneKey } from '../theme/palettes.ts';
 import { useScene, useSceneColor } from '../theme/SceneProvider.tsx';
@@ -81,28 +80,6 @@ export function HeaderFade({ width, bottom }: { width: number; bottom: number })
         <Rect x={0} y={0} width={width} height={HEADER_FADE.height}>
           <LinearGradient start={vec(0, 0)} end={vec(0, HEADER_FADE.height)} colors={colors} />
         </Rect>
-      </Canvas>
-    </View>
-  );
-}
-
-/** The warm ledge at the foot of the window. `top` is where the glass meets the room. */
-export function Sill({ width, top }: { width: number; top: number }) {
-  const surface = useSceneColor('surface');
-  const ledge = useSceneColor('accent200');
-  const colors = useDerivedValue(() => [surface.value, ledge.value]);
-  const pad = sill.shadow.blur + sill.shadow.dy;
-  const h = sill.height;
-  return (
-    <View pointerEvents="none" style={[absolute, { top: top - h - 1, width, height: h + 1 + pad }]}>
-      <Canvas style={{ width, height: h + 1 + pad }}>
-        <Box box={rrect(rect(0, 1, width, h), sill.radius, sill.radius)} color={surface}>
-          <BoxShadow dx={0} dy={sill.shadow.dy} blur={sill.shadow.blur} color={sill.shadow.color} />
-        </Box>
-        <RoundedRect x={0} y={1} width={width} height={h} r={sill.radius}>
-          <LinearGradient start={vec(0, 1)} end={vec(0, h + 1)} colors={colors} />
-        </RoundedRect>
-        <Rect x={sill.radius} y={0} width={width - sill.radius * 2} height={1} color={sill.highlight} />
       </Canvas>
     </View>
   );

@@ -14,11 +14,11 @@ is on the `flutter` branch, untouched.
 | T1.6 Sign in | written; tested in preview; **you** check it with Firebase on the iPhone (below) |
 | T1.7 Onboarding | written; runs in Expo Go (preview sign-in) |
 | T1.8 Avatar editor | written; your face and your companion's, runs in Expo Go |
-| T2.1 Scene data | transcribed from the prototype by `npm run scenes`; tested layer by layer |
-| T2.2 ◆ ScenePainter | written; scenes are now **paintings** (Higgsfield, FLUX 3), the drawn ones the fallback — Fork → *The nine scenes* |
+| T2.1 Scene data | done, then replaced: the scenes are paintings (`assets/scenes/`) and the drawn versions are removed |
+| T2.2 ◆ ScenePainter | written for the paintings (Higgsfield, FLUX 3) — Fork → *The nine scenes* |
 | T2.3 Time-of-day wash | written; recomputed on resume — full-screen scene view lets you force each part of the day |
 | T2.4 ◆ Ambient drift | written; reviewed by the owner |
-| T2.5 Glass, sill and parallax | written — Fork → *The window*; check 60fps in a release build |
+| T2.5 Glass and parallax | written — Fork → *The window*; the sill was removed at the owner's request; check 60fps in a release build |
 | T2.6 Scene switching retints the app | written — the scene chips on *The window* |
 
 ## Avatars: the detailed kit
@@ -51,7 +51,7 @@ colour, so any colour shades correctly.
 - **Type-checked against the real libraries.** `npm run typecheck` passes with
   TypeScript 6 against the actual React Native 0.86, Expo SDK 57, Skia and
   Reanimated 4 types — app code, tests, tools and config.
-- **159 tests pass** (`npm test`):
+- **143 tests pass** (`npm test`):
   - **Avatars.** Every path of every option parses; no hairstyle or extra
     leaves the frame; shadows are darker and highlights lighter than their base
     at the same hue; small faces drop their detail; a spec read back from the
@@ -73,11 +73,9 @@ colour, so any colour shades correctly.
     spec and survive the round trip; matching eyes stay matching until the
     switch is on; sliders find where a saved colour sits; every swatch has a
     spoken name; a companion keeps its name in the user document.
-  - **Scenes.** The prototype's own scenes() is run and compared with the
-    nine scene files layer by layer — count, kind, colour, opacity, geometry
-    and floor; the seven `T` curves became exactly the `Q`s below; painted
-    into any rect a scene scales on width only, crops at header height, and
-    its ground colour carries it to the bottom of a tall screen.
+  - **Scenes.** One painting per scene, a real WebP, under 1 MB for all
+    nine; painted into any rect it scales on width only, and its ground
+    colour carries it to the bottom.
   - **The room.** Four parts of the day (the small hours are night — the
     prototype called 2am morning); each wash is low-alpha and distinct. Drift:
     each scene's effect and count, zero particles when motion is off, the
@@ -266,7 +264,7 @@ The top of the Night sky is `#2E2B25`; the darkest hair is `#2E2318`. Contrast:
 head. Night is the first village's scene. A hairline highlight, or lifting the
 sky's top stop slightly, would fix it.
 
-### 3. The scene data uses `T`, which the parser is forbidden to accept — done in T2.1
+### 3. The scene data uses `T`, which the parser is forbidden to accept — moot: the scenes are paintings now
 
 Of the 62 layer paths in the prototype, 55 parse clean and exactly 7 use `T`
 (smooth quadratic) — every one a rolling hill or water line. They will throw the

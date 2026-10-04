@@ -16,8 +16,8 @@ stop when its definition of done is met.
 - **Path data is absolute only** — `M L Q C Z`. No arcs, no relative commands,
   no `H V S T`. The geometry scaler offsets every number as an absolute x,y pair.
   `src/paint/pathParser.ts` THROWS on anything else; do not "add support" for
-  more commands. Seven scene paths in the prototype use `T`: SETUP.md has all
-  seven already converted to exact `Q`s.
+  more commands. (The scenes are paintings now, so this governs the avatars,
+  companions and onboarding artwork.)
 - **Four reactions**: heart, thanks-hands, smile, star. Not five. No reaction picker.
 - **Routines are self-reported.** Never write, schedule or send a missed-dose
   alert. Tahan is not a medical reminder and the copy says so.
@@ -83,10 +83,13 @@ logic, put the logic in a pure module and test it there.
   looks identical on both platforms — including the tab bar (a custom `tabBar`)
   and headers (`headerShown: false` everywhere).
 - **Scene backdrops are paintings** (`assets/scenes/<key>.webp`, the owner's
-  call): generated in one style from the drawn scenes' content, prompts in
+  call): generated in one style from the prototype's scenes, prompts in
   `design/scene-prompts.md`. Drift, wash and window glass stay in code on top.
-  The drawn scenes in `src/paint/scenes/` remain the fallback while an image
-  loads — keep them. Avatars stay drawn in code.
+  The drawn scenes were removed at the owner's request; while a painting
+  loads, its ground colour (`src/paint/sceneArt.ts`) fills the rect. Avatars
+  stay drawn in code.
+- **No sill.** The prototype's warm ledge under the header was removed at the
+  owner's request — it read as a stray bar. The header fades into the veil.
 - Surfaces fade through the retint with `useSceneColor()`; text uses the
   destination colours from `useScene().colors`.
 

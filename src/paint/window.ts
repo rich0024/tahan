@@ -1,10 +1,13 @@
 // Tahan — the window: glass, sill and parallax.
 //
 // Pure. The values are the prototype's (design/Tahan.dc.html, turn 7): a
-// faint diagonal sheen across the pane, a soft vignette at the edges, and a
-// warm ledge where the glass meets the room — kept quiet on purpose, so the
-// window is only noticed on the second look. The scene sits behind the feed
-// and moves at a sixth of its speed.
+// faint diagonal sheen across the pane and a soft vignette at the edges —
+// kept quiet on purpose, so the window is only noticed on the second look.
+// The scene sits behind the feed and moves at a sixth of its speed.
+//
+// The prototype also had a warm sill where the glass meets the room; the
+// owner took it out (it read as a stray bar), so the header simply fades
+// into the veil.
 
 /** The header: the part of the window with nothing in front of it. */
 export const HEADER_HEIGHT = 216;
@@ -47,13 +50,6 @@ export function gradientLine(angleDeg: number, w: number, h: number): { x0: numb
 
 /** The vignette: an inner shadow all round, and a hairline of light at the edge. */
 export const vignette = { blur: 90, spread: 26, color: 'rgba(32, 30, 29, 0.16)', hairline: 'rgba(253, 247, 236, 0.22)' } as const;
-
-/** The sill: a 9pt ledge, a line of light along its top, a soft shadow below. */
-export const sill = {
-  height: 9, radius: 5,
-  highlight: 'rgba(253, 247, 236, 0.55)',
-  shadow: { dy: 5, blur: 14, color: 'rgba(32, 30, 29, 0.16)' },
-} as const;
 
 /** The veil behind the feed: the scene's background, nearly opaque. */
 export const veil = { alphas: [0.72, 0.9, 0.93], positions: [0, 0.22, 1] } as const;

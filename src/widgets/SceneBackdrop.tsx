@@ -1,22 +1,16 @@
 // Tahan — a scene, painted into a rect.
 //
-// The painting (src/paint/scenes/art.ts) is scaled to the rect's width and
+// The painting (src/paint/sceneArt.ts) is scaled to the rect's width and
 // anchored top; below it, its own ground colour runs to the bottom, joined by
-// a short fade. While a painting is still loading — the first frame after
-// launch — the drawn version of the same scene stands in, so there's never
-// an empty sky. `drawn` shows the drawn version on purpose, for comparison.
+// a short fade. While the painting is still loading — a moment, on the first
+// launch — the ground colour alone fills the rect.
 //
 // Decoration: a screen reader skips it — screens name the village in words.
 
-import { useMemo } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
-import {
-  Canvas, Image, LinearGradient, Picture, Rect, Skia, useImage, vec, type SkPicture,
-} from '@shopify/react-native-skia';
+import { Canvas, Image, LinearGradient, Rect, useImage, vec } from '@shopify/react-native-skia';
 
-import { artFloor, artPlacement } from '../paint/scenes/art.ts';
-import { sceneFrame } from '../paint/scenes/index.ts';
-import { paintLayers } from '../paint/skiaPaint.ts';
+import { artFloor, artPlacement } from '../paint/sceneArt.ts';
 import { withAlpha } from '../theme/oklch.ts';
 import type { SceneKey } from '../theme/palettes.ts';
 
@@ -34,43 +28,13 @@ const ART: Readonly<Record<SceneKey, number>> = {
 };
 /* eslint-enable @typescript-eslint/no-require-imports */
 
-// ---------------------------------------------------------------------------
-// The drawn fallback, recorded once per scene and size.
-
-const MAX = 48;
-const pictures = new Map<string, SkPicture>();
-
-function drawn(scene: SceneKey, width: number, height: number): SkPicture {
-  const key = `${scene}|${Math.round(width)}|${Math.round(height)}`;
-  const hit = pictures.get(key);
-  if (hit) {
-    pictures.delete(key);
-    pictures.set(key, hit);
-    return hit;
-  }
-  const recorder = Skia.PictureRecorder();
-  paintLayers(recorder.beginRecording(Skia.XYWHRect(0, 0, width, height)), sceneFrame(scene, width, height));
-  const picture = recorder.finishRecordingAsPicture();
-  pictures.set(key, picture);
-  while (pictures.size > MAX) {
-    const oldest = pictures.keys().next().value;
-    if (oldest === undefined) break;
-    pictures.delete(oldest);
-  }
-  return picture;
-}
-
-// ---------------------------------------------------------------------------
-
-export function SceneBackdrop({ scene, width, height, style, version = 'painted' }: {
+export function SceneBackdrop({ scene, width, height, style }: {
   scene: SceneKey;
   width: number;
   height: number;
   style?: StyleProp<ViewStyle>;
-  version?: 'painted' | 'drawn';
 }) {
-  const image = useImage(version === 'painted' ? ART[scene] : null);
-  const fallback = useMemo(() => drawn(scene, width, height), [scene, width, height]);
+  const image = useImage(ART[scene]);
   const art = artPlacement(width);
   const floor = artFloor[scene];
 
@@ -82,9 +46,9 @@ export function SceneBackdrop({ scene, width, height, style, version = 'painted'
       importantForAccessibility="no-hide-descendants"
     >
       <Canvas style={{ width, height }}>
-        {version === 'painted' && image ? (
+        <Rect x={0} y={0} width={width} height={height} color={floor} />
+        {image && (
           <>
-            <Rect x={0} y={0} width={width} height={height} color={floor} />
             <Image image={image} x={0} y={0} width={art.width} height={art.height} fit="fill" />
             <Rect x={0} y={art.fadeTop} width={width} height={art.fadeHeight + 1}>
               <LinearGradient
@@ -94,8 +58,6 @@ export function SceneBackdrop({ scene, width, height, style, version = 'painted'
               />
             </Rect>
           </>
-        ) : (
-          <Picture picture={fallback} />
         )}
       </Canvas>
     </View>

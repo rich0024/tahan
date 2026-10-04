@@ -1,24 +1,22 @@
-// Review screen for T2.1 and T2.2: the nine scenes at header height, painted
-// or drawn, each with a way to see it full screen. Delete with the other review screens once
+// Review screen for the scenes: all nine at header height, each with a way to
+// see it full screen. Delete with the other review screens once
 // the feed exists.
 
-import { useState } from 'react';
 import { ScrollView, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BackButton } from '../src/components/BackButton.tsx';
-import { Button, Chip, Screen, T } from '../src/components/themed.tsx';
-import { SCENE_H, SCENE_W } from '../src/paint/scenes/index.ts';
+import { Button, Screen, T } from '../src/components/themed.tsx';
+import { HEADER_HEIGHT } from '../src/paint/window.ts';
 import { tahanScenes } from '../src/theme/palettes.ts';
 import { Room } from '../src/widgets/Room.tsx';
 
 export default function Scenes() {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const header = Math.round((width / SCENE_W) * SCENE_H);
-  const [version, setVersion] = useState<'painted' | 'drawn'>('painted');
+  const header = HEADER_HEIGHT;
 
   return (
     <Screen>
@@ -31,14 +29,10 @@ export default function Scenes() {
             Each at header height ({header}pt on this phone), with the wash for the time of day. Open one
             full screen to see its weather drift, and to try other times of day.
           </T>
-          <View style={{ flexDirection: 'row', gap: 8 }} accessibilityRole="radiogroup" accessibilityLabel="Version">
-            <Chip label="Painted" selected={version === 'painted'} onPress={() => setVersion('painted')} />
-            <Chip label="Drawn" selected={version === 'drawn'} onPress={() => setVersion('drawn')} />
-          </View>
         </View>
         {tahanScenes.map((s) => (
           <View key={s.key} style={{ gap: 8 }}>
-            <Room scene={s.key} width={width} height={header} version={version} ambient={false} />
+            <Room scene={s.key} width={width} height={header} ambient={false} />
             <View style={{ paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
               <T variant="sectionHeading">{s.name}</T>
               <Button

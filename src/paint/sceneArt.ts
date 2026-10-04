@@ -5,12 +5,10 @@
 // owner. Each is 1440 × 716. Painted into a rect it behaves like the drawn
 // scene: scaled on width, anchored top; below it, the painting's own ground
 // colour — sampled from its bottom edge — carries on to the bottom, with a
-// short fade so the join never shows.
-//
-// The drawn scenes (the other files in this folder) stay as the fallback
-// while a painting loads.
+// short fade so the join never shows. Until a painting has loaded — a
+// moment, on the first launch — its ground colour fills the rect.
 
-import type { SceneKey } from '../../theme/palettes.ts';
+import type { SceneKey } from '../theme/palettes.ts';
 
 export const ART_W = 1440;
 export const ART_H = 716;

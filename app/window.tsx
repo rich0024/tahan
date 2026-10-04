@@ -22,7 +22,7 @@ import { HEADER_HEIGHT, NAME_PILL_ALPHA, alphaColor } from '../src/paint/window.
 import { sampleFaces, tahanInk, tahanScenes } from '../src/theme/palettes.ts';
 import { useScene } from '../src/theme/SceneProvider.tsx';
 import { Avatar } from '../src/widgets/Avatar.tsx';
-import { Glass, HeaderFade, Sill, Veil, WindowBackdrop } from '../src/widgets/Window.tsx';
+import { Glass, HeaderFade, Veil, WindowBackdrop } from '../src/widgets/Window.tsx';
 
 const rows = Array.from({ length: 200 }, (_, i) => i);
 const lines = [
@@ -76,7 +76,7 @@ export default function WindowReview() {
                 ))}
               </View>
               <T variant="meta" color="inkMuted">
-                Everything retints over 420ms — the scene, the cards, the chips, the sill. Scroll: the
+                Everything retints over 420ms — the scene, the cards, the chips, the veil. Scroll: the
                 scene moves at a sixth of the feed's speed.
               </T>
             </View>
@@ -97,7 +97,6 @@ export default function WindowReview() {
         />
       </View>
 
-      <Sill width={width} top={HEADER_HEIGHT} />
       <Glass width={width} height={height} />
     </View>
   );

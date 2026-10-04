@@ -7,7 +7,7 @@
 // thread. It draws nothing at all — not slower particles — when the phone
 // asks for reduced motion or Ambient motion is off; and it stops, holding its
 // place, while the app is in the background or the screen isn't the one in
-// front. The window treatment (glass, sill, parallax) is T2.5.
+// front. The window treatment (glass and parallax) is src/widgets/Window.tsx.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
@@ -36,11 +36,10 @@ export interface RoomProps {
   ambient?: boolean;
   /** Force a part of the day; 'auto' follows the clock. */
   dayPart?: DayPart | 'auto';
-  version?: 'painted' | 'drawn';
   style?: StyleProp<ViewStyle>;
 }
 
-export function Room({ scene, width, height, ambient = true, dayPart = 'auto', version, style }: RoomProps) {
+export function Room({ scene, width, height, ambient = true, dayPart = 'auto', style }: RoomProps) {
   const part = useDayPart(dayPart);
   const reduced = useReducedMotion();
   const { drift } = sceneByKey(scene);
@@ -70,7 +69,7 @@ export function Room({ scene, width, height, ambient = true, dayPart = 'auto', v
 
   return (
     <View style={[{ width, height }, style]} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <SceneBackdrop scene={scene} width={width} height={height} version={version} />
+      <SceneBackdrop scene={scene} width={width} height={height} />
       <Canvas style={{ position: 'absolute', top: 0, left: 0, width, height }}>
         <Rect x={0} y={0} width={width} height={height}>
           <LinearGradient start={vec(0, 0)} end={vec(0, height)} colors={[...wash.colors]} positions={[...wash.positions]} />
