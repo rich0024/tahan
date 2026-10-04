@@ -192,3 +192,48 @@ function srgbToLinear(c: number): number {
 function linearToSrgb(c: number): number {
   return c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055;
 }
+
+// ---------------------------------------------------------------------------
+// Shading helpers for the avatar kit.
+//
+// An avatar part has one base colour; its shadow and highlight are derived
+// here, in OKLab, so any colour a person picks shades correctly without new
+// art. These match the avatar lab (design/avatar-lab.html) exactly.
+
+/** Shift a colour's OKLab lightness by `dl` and scale its chroma by `k`, keeping hue. */
+export function tone(hex: string, dl: number, k = 1): string {
+  const lab = rgbToOklab(hexToRgb(hex));
+  const l = Math.min(0.98, Math.max(0.08, lab.l + dl));
+  return labToHexUnclamped({ l, a: lab.a * k, b: lab.b * k });
+}
+
+/** OKLab lightness, 0–1. */
+export function oklabLightness(hex: string): number {
+  return rgbToOklab(hexToRgb(hex)).l;
+}
+
+/** Mix two colours in OKLab. */
+export function mixOklab(a: string, b: string, t: number): string {
+  const x = rgbToOklab(hexToRgb(a));
+  const y = rgbToOklab(hexToRgb(b));
+  return labToHexUnclamped({ l: x.l + (y.l - x.l) * t, a: x.a + (y.a - x.a) * t, b: x.b + (y.b - x.b) * t });
+}
+
+/** A colour at position `t` (0–1) along a list of stops, mixed in OKLab. */
+export function alongStops(stops: readonly string[], t: number): string {
+  const u = Math.min(1, Math.max(0, t)) * (stops.length - 1);
+  const i = Math.min(stops.length - 2, Math.floor(u));
+  return mixOklab(stops[i], stops[i + 1], u - i);
+}
+
+/**
+ * Like labToHex, but clamps each channel instead of bisecting chroma — the
+ * lab's behaviour, kept identical so the app and the lab draw the same face.
+ * Avatar tones stay well inside the gamut, so the difference never shows.
+ */
+function labToHexUnclamped(lab: Oklab): string {
+  const [r, g, b] = labToLinearRgb(lab).map(
+    (v) => Math.round(Math.min(1, Math.max(0, linearToSrgb(Math.min(1, Math.max(0, v))))) * 255),
+  );
+  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`.toUpperCase();
+}

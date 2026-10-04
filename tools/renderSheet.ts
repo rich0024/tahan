@@ -1,100 +1,65 @@
 // Dev tool: render the avatar kit and the ramps to a static HTML contact sheet.
 //
-//   node tools/renderSheet.ts out.html
+//   npm run sheet        (writes avatar-sheet.html)
 //
-// Uses the same layer lists the app paints, serialised to SVG. Every path goes
-// through the parser and back out (opsToString), so the sheet shows what the
-// parser produced, not the raw strings. Useful for reviewing T1.4 without a
-// device, and for diffing the kit after any geometry change.
+// Uses the same layer lists the app paints, serialised to SVG through the
+// parser. For reviewing geometry without a device, and for eyeballing the kit
+// after any change to it. The interactive version is design/avatar-lab.html.
 
 import { writeFileSync } from 'node:fs';
 
-import {
-  AVATAR_BOX, AVATAR_GROUND, AVATAR_ORIGIN, SCENE_TO_AVATAR_BOX,
-  avatarLayers, type AvatarKind,
-} from '../src/paint/avatarGeometry.ts';
-import { cachedOps, opsToString } from '../src/paint/pathParser.ts';
-import type { Layer } from '../src/paint/primitives.ts';
+import { AVATAR_BOX, avatarBackdrop, avatarLayers } from '../src/paint/avatarGeometry.ts';
+import { COMPANION_BOX, COMPANION_ORIGIN, companionLayers, type CompanionKind } from '../src/paint/companionGeometry.ts';
+import { G, SKY } from '../src/paint/primitives.ts';
 import { makeRamp, rampSteps } from '../src/theme/oklch.ts';
 import {
-  AvatarKit, avatarSpec, sceneByKey, sceneSkies, specForIndex, tahanScenes,
+  AvatarKit, avatarSpec, sampleFaces, sceneByKey, sceneSkies, specForIndex, tahanScenes,
   type AvatarSpec, type SceneKey,
 } from '../src/theme/palettes.ts';
+import { svgDocument } from './layersToSvg.ts';
 
-let gradientId = 0;
-
-function layerSvg(l: Layer): string {
-  const o = l.opacity === 1 ? '' : ` opacity="${l.opacity}"`;
-  switch (l.kind) {
-    case 'rect':
-      return `<rect x="${l.x}" y="${l.y}" width="${l.w}" height="${l.h}" rx="${l.r}" fill="${l.fill}"${o}/>`;
-    case 'circle':
-      return `<circle cx="${l.cx}" cy="${l.cy}" r="${l.r}" fill="${l.fill}"${o}/>`;
-    case 'ellipse': {
-      const t = l.rotation
-        ? ` transform="rotate(${l.rotation.deg} ${l.rotation.px ?? l.cx} ${l.rotation.py ?? l.cy})"`
-        : '';
-      return `<ellipse cx="${l.cx}" cy="${l.cy}" rx="${l.rx}" ry="${l.ry}" fill="${l.fill}"${t}${o}/>`;
-    }
-    case 'fillPath':
-      return `<path d="${opsToString(cachedOps(l.d))}" fill="${l.fill}"${o}/>`;
-    case 'strokePath':
-      return `<path d="${opsToString(cachedOps(l.d))}" fill="none" stroke="${l.stroke}" stroke-width="${l.width}" stroke-linecap="round"${o}/>`;
-    case 'sky':
-      throw new Error('sky is drawn by the avatar wrapper');
-  }
+function face(spec: AvatarSpec, size: number, scene: SceneKey): string {
+  return svgDocument(
+    [...avatarBackdrop(sceneSkies[scene], sceneByKey(scene).accent2), ...avatarLayers(spec, size <= 44)],
+    AVATAR_BOX, size,
+  );
 }
 
-function avatarSvg(
-  spec: AvatarSpec, size: number, scene: SceneKey,
-  kind: AvatarKind = 'person', coat = 0,
-): string {
-  const id = `g${gradientId++}`;
+function companion(kind: CompanionKind, coat: number, size: number, scene: SceneKey): string {
   const sky = sceneSkies[scene];
-  const stops = sky.stops
-    .map((c, i) => `<stop offset="${sky.positions[i]}" stop-color="${c}"/>`)
-    .join('');
-  const accent2 = sceneByKey(scene).accent2;
-  const { scale, dx } = SCENE_TO_AVATAR_BOX;
-  return `<svg width="${size}" height="${size}" viewBox="0 0 ${AVATAR_BOX} ${AVATAR_BOX}" style="border-radius:999px;display:block">
-<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">${stops}</linearGradient></defs>
-<rect width="${AVATAR_BOX}" height="${AVATAR_BOX}" fill="url(#${id})"/>
-<g transform="scale(${scale}) translate(${dx} 0)"><path d="${opsToString(cachedOps(AVATAR_GROUND.d))}" fill="${accent2}" opacity="${AVATAR_GROUND.opacity}"/></g>
-<g transform="translate(${AVATAR_ORIGIN.x} ${AVATAR_ORIGIN.y})">${avatarLayers(spec, kind, coat).map(layerSvg).join('')}</g>
-</svg>`;
+  return svgDocument([
+    SKY(0, 0, COMPANION_BOX, COMPANION_BOX, sky.stops, sky.positions),
+    G(companionLayers(kind, {
+      coat: AvatarKit.coats[coat], top: AvatarKit.clothSwatches[coat],
+      skin: AvatarKit.skinRange[2], hair: AvatarKit.hairRange[1],
+    }), { transform: { x: COMPANION_ORIGIN.x, y: COMPANION_ORIGIN.y, scale: 1, ox: 0, oy: 0 } }),
+  ], COMPANION_BOX, size);
 }
 
-const cell = (svg: string, label = '') =>
-  `<figure>${svg}${label ? `<figcaption>${label}</figcaption>` : ''}</figure>`;
-
-const section = (title: string, body: string) =>
-  `<section><h2>${title}</h2><div class="row">${body}</div></section>`;
+const cell = (svg: string, label = '') => `<figure>${svg}${label ? `<figcaption>${label}</figcaption>` : ''}</figure>`;
+const section = (title: string, body: string) => `<section><h2>${title}</h2><div class="row">${body}</div></section>`;
 
 const parts: string[] = [];
 
-parts.push(section('24 faces · 96 / 44 / 26 · night sky',
-  [96, 44, 26].map((size) =>
-    `<div class="row">${Array.from({ length: 24 }, (_, i) => cell(avatarSvg(specForIndex(i), size, 'night'))).join('')}</div>`,
+parts.push(section('A village', sampleFaces.map(({ name, ...spec }, i) =>
+  cell(face(spec, 96, (['night', 'coast', 'forest'] as const)[i % 3]), name)).join('')));
+
+parts.push(section('24 faces · 96 / 44 / 34 / 26 · night sky',
+  [96, 44, 34, 26].map((size) =>
+    `<div class="row">${Array.from({ length: 24 }, (_, i) => cell(face(specForIndex(i), size, 'night'))).join('')}</div>`,
   ).join('')));
 
-parts.push(section('Every hairstyle',
-  AvatarKit.hairNames.map((name, hair) =>
-    cell(avatarSvg(avatarSpec({ skin: 1, hairColor: hair % 5, top: hair % 5, hair }), 96, 'forest'), name),
-  ).join('')));
+parts.push(section('Every hairstyle', AvatarKit.hairStyles.map((name, hair) =>
+  cell(face(avatarSpec({ skin: (hair % 8) / 7, hair, hairColor: AvatarKit.hairRange[hair % 10], topColor: AvatarKit.clothSwatches[hair % 8] }), 96, 'forest'), name)).join('')));
 
-parts.push(section('Glasses × facial hair',
-  [0, 1, 2, 3].flatMap((glasses) => [0, 1, 2, 3].map((face) =>
-    cell(avatarSvg(avatarSpec({ skin: (glasses + face) % 5, hairColor: 4 - glasses, top: 1, hair: face === 0 ? 6 : 0, glasses, face }), 96, 'coast'),
-      `${AvatarKit.glassesNames[glasses]} · ${AvatarKit.faceNames[face]}`),
-  )).join('')));
+parts.push(section('Glasses × facial hair', AvatarKit.glasses.flatMap((g, glasses) => AvatarKit.facialHair.map((f, facial) =>
+  cell(face(avatarSpec({ skin: ((glasses + facial) % 8) / 7, hair: facial ? 0 : 7, glasses, facial }), 96, 'coast'), `${g} · ${f}`))).join('')));
 
-parts.push(section('Companions',
-  (['dog', 'cat', 'baby'] as const).flatMap((kind) => [0, 2, 4].map((coat) =>
-    cell(avatarSvg(avatarSpec({ skin: 2, hairColor: 1, top: coat }), 96, 'blossom', kind, coat), `${kind} · coat ${coat}`),
-  )).join('')));
+parts.push(section('Every extra', AvatarKit.extras.map((name, extra) =>
+  cell(face(avatarSpec({ hair: 3, extra, extraColor: AvatarKit.extraSwatches[extra % 6] }), 96, 'blossom'), name)).join('')));
 
-parts.push(section('One face on all nine skies',
-  tahanScenes.map((s) => cell(avatarSvg(avatarSpec({ skin: 3, hairColor: 0, top: 2, hair: 3, glasses: 1 }), 96, s.key), s.name)).join('')));
+parts.push(section('Companions — still the original style', (['dog', 'cat', 'baby'] as const).flatMap((kind) =>
+  [0, 2, 4].map((coat) => cell(companion(kind, coat, 96, 'blossom'), `${kind} · coat ${coat}`))).join('')));
 
 parts.push(section('OKLCH ramps · accent then accent-2 · 100 → 900 · ▲ marks the token',
   `<div class="ramps">${tahanScenes.map((s) => `<div class="ramp-row"><span>${s.name}</span>${[s.accent, s.accent2].map((base) => {
@@ -103,9 +68,9 @@ parts.push(section('OKLCH ramps · accent then accent-2 · 100 → 900 · ▲ ma
   }).join('')}</div>`).join('')}</div>`));
 
 const out = process.argv[2] ?? 'avatar-sheet.html';
-writeFileSync(out, `<!doctype html><meta charset="utf-8"><title>Tahan · M1 contact sheet</title>
+writeFileSync(out, `<!doctype html><meta charset="utf-8"><title>Tahan · avatar kit</title>
 <style>
-body{margin:0;padding:28px;background:#F5EAD8;color:#201E1D;font:13px/1.4 system-ui,sans-serif;width:1240px}
+body{margin:0;padding:28px;background:#F5EAD8;color:#201E1D;font:13px/1.4 system-ui,sans-serif;max-width:1240px}
 h2{font-size:15px;margin:22px 0 10px}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:10px}
 figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:4px}

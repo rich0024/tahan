@@ -5,9 +5,11 @@
 // with no device and this one stays small.
 
 import {
+  ClipOp,
   PaintStyle,
   Skia,
   StrokeCap,
+  StrokeJoin,
   TileMode,
   vec,
   type SkCanvas,
@@ -57,6 +59,19 @@ function fillPaint(color: string, opacity: number): SkPaint {
 export function paintLayers(canvas: SkCanvas, layers: readonly Layer[]): void {
   for (const l of layers) {
     switch (l.kind) {
+      case 'group': {
+        canvas.save();
+        if (l.transform) {
+          const t = l.transform;
+          canvas.translate(t.x, t.y);
+          canvas.scale(t.scale, t.scale);
+          canvas.translate(-t.ox, -t.oy);
+        }
+        if (l.clip) canvas.clipPath(skPath(l.clip), ClipOp.Intersect, true);
+        paintLayers(canvas, l.layers);
+        canvas.restore();
+        break;
+      }
       case 'rect': {
         const rect = Skia.XYWHRect(l.x, l.y, l.w, l.h);
         const paint = fillPaint(l.fill, l.opacity);
@@ -87,8 +102,9 @@ export function paintLayers(canvas: SkCanvas, layers: readonly Layer[]): void {
         const paint = fillPaint(l.stroke, l.opacity);
         paint.setStyle(PaintStyle.Stroke);
         paint.setStrokeWidth(l.width);
-        // Round caps, as the prototype draws them.
+        // Round caps and joins, as the prototype and the avatar lab draw them.
         paint.setStrokeCap(StrokeCap.Round);
+        paint.setStrokeJoin(StrokeJoin.Round);
         canvas.drawPath(skPath(l.d), paint);
         break;
       }

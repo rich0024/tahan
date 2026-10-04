@@ -1,8 +1,11 @@
 // Tahan — the six drawing primitives.
 //
-// Everything Tahan draws (nine scenes, every avatar, the companions) is a flat
-// list of these: rect, circle, ellipse, filled path, stroked path, sky
-// gradient. Six types, no more. Keeping the vocabulary this small is what lets
+// Everything Tahan draws (nine scenes, every avatar, the companions) is a list
+// of these: rect, circle, ellipse, filled path, stroked path, sky gradient —
+// plus one structural type, a group, which can transform its children and clip
+// them to a path. The group arrived with the detailed avatars: shading that
+// stays inside the face is a clip, and drawing the figure a little larger than
+// authored is a transform. Keeping the vocabulary this small is what lets
 // scenes and avatars share one painter, one scaler and one cache.
 //
 // Layers are authored in a fixed box — 402×216 for scenes, 78×78 for avatars —
@@ -21,7 +24,26 @@ export interface Rotation {
   readonly py?: number;
 }
 
+/**
+ * translate(x, y) · scale(scale) · translate(-ox, -oy): scale about the point
+ * (ox, oy), then move it to (x, y). The one transform the kit needs.
+ */
+export interface GroupTransform {
+  readonly x: number;
+  readonly y: number;
+  readonly scale: number;
+  readonly ox: number;
+  readonly oy: number;
+}
+
 export type Layer =
+  | {
+      readonly kind: 'group';
+      readonly transform: GroupTransform | null;
+      /** Absolute path data, in the group's own coordinates. */
+      readonly clip: string | null;
+      readonly layers: readonly Layer[];
+    }
   | {
       readonly kind: 'rect';
       readonly x: number; readonly y: number;
@@ -107,8 +129,31 @@ export function P(d: string, fill: string, opacity = 1): Layer {
   return { kind: 'fillPath', d, fill, opacity };
 }
 
-export function PS(d: string, stroke: string, width: number): Layer {
-  return { kind: 'strokePath', d, stroke, width, opacity: 1 };
+export function PS(d: string, stroke: string, width: number, opacity = 1): Layer {
+  return { kind: 'strokePath', d, stroke, width, opacity };
+}
+
+/**
+ * An outlined circle. Built as four cubics (the standard 0.5523 handle), so
+ * it is ordinary absolute path data like everything else.
+ */
+export function RING(cx: number, cy: number, r: number, stroke: string, width: number, opacity = 1): Layer {
+  const k = +(0.5522847498 * r).toFixed(3);
+  const f = (n: number) => +n.toFixed(3);
+  const d = `M${f(cx + r)} ${f(cy)} `
+    + `C${f(cx + r)} ${f(cy + k)} ${f(cx + k)} ${f(cy + r)} ${f(cx)} ${f(cy + r)} `
+    + `C${f(cx - k)} ${f(cy + r)} ${f(cx - r)} ${f(cy + k)} ${f(cx - r)} ${f(cy)} `
+    + `C${f(cx - r)} ${f(cy - k)} ${f(cx - k)} ${f(cy - r)} ${f(cx)} ${f(cy - r)} `
+    + `C${f(cx + k)} ${f(cy - r)} ${f(cx + r)} ${f(cy - k)} ${f(cx + r)} ${f(cy)} Z`;
+  return PS(d, stroke, width, opacity);
+}
+
+/** A group of layers, optionally transformed and clipped to a path. */
+export function G(
+  layers: readonly Layer[],
+  options: { transform?: GroupTransform; clip?: string } = {},
+): Layer {
+  return { kind: 'group', layers, transform: options.transform ?? null, clip: options.clip ?? null };
 }
 
 export function SKY(
@@ -128,7 +173,28 @@ export function SKY(
 export function warmPaths(layers: readonly Layer[]): void {
   for (const l of layers) {
     if (l.kind === 'fillPath' || l.kind === 'strokePath') cachedOps(l.d);
+    if (l.kind === 'group') {
+      if (l.clip) cachedOps(l.clip);
+      warmPaths(l.layers);
+    }
   }
+}
+
+/** Every path string in `layers`, groups and clips included. */
+export function allPaths(layers: readonly Layer[], out: string[] = []): string[] {
+  for (const l of layers) {
+    if (l.kind === 'fillPath' || l.kind === 'strokePath') out.push(l.d);
+    if (l.kind === 'group') {
+      if (l.clip) out.push(l.clip);
+      allPaths(l.layers, out);
+    }
+  }
+  return out;
+}
+
+/** Map a point through a group transform. */
+export function applyTransform(t: GroupTransform, x: number, y: number): [number, number] {
+  return [t.x + (x - t.ox) * t.scale, t.y + (y - t.oy) * t.scale];
 }
 
 /**
@@ -144,6 +210,24 @@ export function layerBounds(layers: readonly Layer[]): Bounds {
 
   for (const l of layers) {
     switch (l.kind) {
+      case 'group': {
+        if (l.layers.length === 0) break;
+        let b = layerBounds(l.layers);
+        if (l.clip) {
+          const c = pathBounds(cachedOps(l.clip));
+          b = {
+            left: Math.max(b.left, c.left), top: Math.max(b.top, c.top),
+            right: Math.min(b.right, c.right), bottom: Math.min(b.bottom, c.bottom),
+          };
+        }
+        if (l.transform) {
+          const [x0, y0] = applyTransform(l.transform, b.left, b.top);
+          const [x1, y1] = applyTransform(l.transform, b.right, b.bottom);
+          b = { left: x0, top: y0, right: x1, bottom: y1 };
+        }
+        add(b);
+        break;
+      }
       case 'rect':
       case 'sky':
         add({ left: l.x, top: l.y, right: l.x + l.w, bottom: l.y + l.h });

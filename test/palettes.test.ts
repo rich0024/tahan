@@ -7,9 +7,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import {
-  AvatarKit, sceneSkies, specForIndex, tahanScenes,
-} from '../src/theme/palettes.ts';
+import { sceneSkies, tahanScenes } from '../src/theme/palettes.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const design = (f: string) => readFileSync(join(here, '../design', f), 'utf8');
@@ -26,18 +24,6 @@ test('the nine palettes match tahan_palettes.dart exactly', () => {
   assert.deepEqual(tahanScenes.map((s) => ({ ...s })), fromDart);
 });
 
-test('the avatar kit matches tahan_palettes.dart exactly', () => {
-  const dart = design('tahan_palettes.dart');
-  const list = (name: string) => {
-    const m = new RegExp(`${name} = \\[([^\\]]+)\\]`).exec(dart);
-    assert.ok(m, name);
-    return [...m[1].matchAll(/0xFF(\w{6})/g)].map((x) => `#${x[1]}`);
-  };
-  assert.deepEqual([...AvatarKit.skins], list('skins'));
-  assert.deepEqual([...AvatarKit.hairColors], list('hairColors'));
-  assert.deepEqual([...AvatarKit.clothes], list('clothes'));
-});
-
 test('the nine skies match the prototype exactly', () => {
   const html = design('Tahan.dc.html');
   const re = /\{ key: '(\w+)', name: '[^']*', dark: (?:true|false),\s*pal: \{[^}]*\},\s*stops: (\[[^\]]*\])/g;
@@ -50,16 +36,4 @@ test('the nine skies match the prototype exactly', () => {
     assert.deepEqual([...sky.stops], stops.map((s) => s.c.toUpperCase()), m[1]);
     assert.deepEqual([...sky.positions], stops.map((s) => Number(s.o)), m[1]);
   }
-});
-
-test('specForIndex is deterministic and covers the range', () => {
-  assert.deepEqual(specForIndex(7), specForIndex(7));
-  const seen = new Set<number>();
-  for (let i = 0; i < 200; i++) {
-    const s = specForIndex(i);
-    seen.add(s.hair);
-    assert.ok(s.skin >= 0 && s.skin < 5 && s.hair >= 0 && s.hair < 8);
-    assert.ok(s.glasses >= 0 && s.glasses < 4 && s.face >= 0 && s.face < 4);
-  }
-  assert.equal(seen.size, 8, 'all eight hairstyles appear in the first 200');
 });

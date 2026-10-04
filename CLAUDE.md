@@ -27,8 +27,13 @@ stop when its definition of done is met.
 - **No `Math.random()` in the app.** Particle phase and duration come from a
   hash of index and scene key, so the pattern is stable across renders.
   `test/guards.test.ts` enforces it.
-- **Avatars are six integers.** No photo upload, no crop, no image hosting. Do
-  not add photo avatars.
+- **Avatars are a small spec, never a photo.** A style per part plus a few
+  colours — `AvatarSpec`, thirteen fields (the brief's original "six integers"
+  grew into this when the owner chose the detailed, recolourable kit). No photo
+  upload, no crop, no image hosting; do not add photo avatars. Shadows and
+  highlights are derived from each base colour, so never add colour variants as
+  new art. The kit was designed in `design/avatar-lab.html`; the app's geometry
+  is `src/paint/avatarGeometry.ts`, and that file is now the source of truth.
 - **A village is the permission boundary.** Everything that is not a user's own
   document lives under `/villages/{villageId}/`. Rules are written against
   membership.
@@ -98,6 +103,7 @@ without asking.
 | `ThemeExtension`, `villageTheme(palette)` | `SceneProvider`, `useScene()`, `useSceneColor()` |
 | `CustomPainter`, `Canvas` | Skia, via `src/paint/skiaPaint.ts` |
 | `ui.Picture` cache | `SkPicture` cache in `src/widgets/Avatar.tsx` |
+| "six primitives" | the six, plus a `group` that can transform and clip its children (`src/paint/primitives.ts`) |
 | `Semantics(label:)` | `accessibilityLabel` |
 | `MediaQuery.disableAnimationsOf` | `useReducedMotion()` |
 | `textScaler` | `allowFontScaling` / `maxFontSizeMultiplier` — never set either |

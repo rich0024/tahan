@@ -13,20 +13,39 @@ is on the `flutter` branch, untouched.
 | T1.5 Avatar component and picture cache | written; not yet run on a device |
 | T1.6 – T1.8 | not started |
 
+## Avatars: the detailed kit
+
+People are drawn with the detailed, recolourable kit designed in the avatar lab
+(`design/avatar-lab.html` — open it in a browser to try combinations). A face
+is a style per part plus a few colours: 16 hairstyles, 3 eye styles, 4 mouths,
+5 facial-hair options, 5 glasses, 5 tops, 6 extras, with skin and hair on
+natural sliders and every other colour free. Shading is derived from each base
+colour, so any colour shades correctly.
+
+- **Checked against the lab, pixel by pixel**, when it was ported: 112 faces
+  (every option of every part at full and feed size, plus a sample village),
+  mean difference 0.16/255 per pixel, worst case 3 pixels at 44pt where round
+  frames are drawn as curves. Mutating the geometry made the comparison fail,
+  so the match is real.
+- **Under 44pt** a face drops teeth, blush, lashes, earrings, buttons, temple
+  arms and hair highlights, and its lines thicken.
+- **Companions** (dog, cat, baby) are still in the original flat style. Redraw
+  them in the new kit before the Me tab puts them on screen.
+- **The in-app creator** (T1.8) should not show the small size previews the lab
+  has; those are for checking the art, not for making a face.
+
 ## What was verified, and what was not
 
 - **Type-checked against the real libraries.** `npm run typecheck` passes with
   TypeScript 6 against the actual React Native 0.86, Expo SDK 57, Skia and
   Reanimated 4 types — app code, tests, tools and config.
-- **67 tests pass** (`npm test`):
-  - **Parity.** The prototype's own `avatar()` function is lifted out of
-    `design/Tahan.dc.html`, run as-is, and compared shape-for-shape with the port
-    for all 640 hair × glasses × face × skin combinations and all 15
-    companion/coat pairs. Five deliberate mutations (a radius, an opacity, a
-    temple-arm endpoint, an ear's rotation, the head/hair z-order) each made it
-    fail.
-  - **Bounds.** Every combination stays inside the 78-unit box, using exact
-    Bézier extrema rather than control points.
+- **74 tests pass** (`npm test`):
+  - **Avatars.** Every path of every option parses; no hairstyle or extra
+    leaves the frame; shadows are darker and highlights lighter than their base
+    at the same hue; small faces drop their detail; a spec read back from the
+    database is repaired rather than failing to draw.
+  - **Companions** match the prototype's own `avatar()`, lifted out of
+    `design/Tahan.dc.html` and run as-is, shape for shape.
   - **Parser.** Accepts absolute `M L Q C Z` with implicit repetition; throws on
     every relative command, both arc forms, `H V S T`, and malformed input.
   - **Palettes and skies** re-read `design/tahan_palettes.dart` and the prototype
