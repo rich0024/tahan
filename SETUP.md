@@ -17,7 +17,9 @@ is on the `flutter` branch, untouched.
 | T2.1 Scene data | transcribed from the prototype by `npm run scenes`; tested layer by layer |
 | T2.2 ◆ ScenePainter | written; scenes are now **paintings** (Higgsfield, FLUX 3), the drawn ones the fallback — Fork → *The nine scenes* |
 | T2.3 Time-of-day wash | written; recomputed on resume — full-screen scene view lets you force each part of the day |
-| T2.4 ◆ Ambient drift | written; **owner review** — open any scene full screen |
+| T2.4 ◆ Ambient drift | written; reviewed by the owner |
+| T2.5 Glass, sill and parallax | written — Fork → *The window*; check 60fps in a release build |
+| T2.6 Scene switching retints the app | written — the scene chips on *The window* |
 
 ## Avatars: the detailed kit
 
@@ -49,7 +51,7 @@ colour, so any colour shades correctly.
 - **Type-checked against the real libraries.** `npm run typecheck` passes with
   TypeScript 6 against the actual React Native 0.86, Expo SDK 57, Skia and
   Reanimated 4 types — app code, tests, tools and config.
-- **153 tests pass** (`npm test`):
+- **159 tests pass** (`npm test`):
   - **Avatars.** Every path of every option parses; no hairstyle or extra
     leaves the frame; shadows are darker and highlights lighter than their base
     at the same hue; small faces drop their detail; a spec read back from the
@@ -81,6 +83,10 @@ colour, so any colour shades correctly.
     each scene's effect and count, zero particles when motion is off, the
     same pattern on every build (a hash of index and scene key), and every
     particle loops and stays in the room.
+  - **The window.** The scene moves at a sixth of the scroll, never below
+    zero (a pull-down can't lift the sky off the top) and never past the
+    extra its 6% scale gives it; the sheen stays faint; colours keep their
+    scene through a mid-retint alpha.
   - **Parser.** Accepts absolute `M L Q C Z` with implicit repetition; throws on
     every relative command, both arc forms, `H V S T`, and malformed input.
   - **Palettes and skies** re-read `design/tahan_palettes.dart` and the prototype
