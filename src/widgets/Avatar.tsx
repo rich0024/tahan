@@ -16,13 +16,12 @@ import { Canvas, Picture, Skia, type SkCanvas, type SkPicture } from '@shopify/r
 import {
   AVATAR_BOX, SMALL_AVATAR, avatarBackdrop, avatarLayers,
 } from '../paint/avatarGeometry.ts';
+import { companionLayers } from '../paint/companionGeometry.ts';
+import { paintLayers } from '../paint/skiaPaint.ts';
 import {
-  COMPANION_BOX, COMPANION_GROUND, COMPANION_ORIGIN, SCENE_TO_COMPANION_BOX,
-  companionLayers, type CompanionColours, type CompanionKind,
-} from '../paint/companionGeometry.ts';
-import { SKY } from '../paint/primitives.ts';
-import { paintLayers, skPath } from '../paint/skiaPaint.ts';
-import { sceneByKey, sceneSkies, specKey, type AvatarSpec, type SceneKey } from '../theme/palettes.ts';
+  CompanionKit, companionKey, sceneByKey, sceneSkies, specKey,
+  type AvatarSpec, type CompanionSpec, type SceneKey,
+} from '../theme/palettes.ts';
 import { useScene } from '../theme/SceneProvider.tsx';
 
 // ---------------------------------------------------------------------------
@@ -68,24 +67,12 @@ function recordFace(spec: AvatarSpec, size: number, scene: SceneKey): SkPicture 
   });
 }
 
-function recordCompanion(kind: CompanionKind, colours: CompanionColours, size: number, scene: SceneKey): SkPicture {
-  const key = `c|${kind}|${colours.coat}|${colours.top}|${colours.skin}|${colours.hair}|${size}|${scene}`;
-  return cached(key, size, (canvas) => {
-    const k = size / COMPANION_BOX;
+function recordCompanion(spec: CompanionSpec, size: number, scene: SceneKey): SkPicture {
+  return cached(`c|${companionKey(spec)}|${size}|${scene}`, size, (canvas) => {
+    const k = size / AVATAR_BOX;
     canvas.scale(k, k);
-    const sky = sceneSkies[scene];
-    paintLayers(canvas, [SKY(0, 0, COMPANION_BOX, COMPANION_BOX, sky.stops, sky.positions)]);
-    canvas.save();
-    canvas.scale(SCENE_TO_COMPANION_BOX.scale, SCENE_TO_COMPANION_BOX.scale);
-    canvas.translate(SCENE_TO_COMPANION_BOX.dx, 0);
-    const ground = Skia.Paint();
-    ground.setAntiAlias(true);
-    ground.setColor(Skia.Color(sceneByKey(scene).accent2));
-    ground.setAlphaf(COMPANION_GROUND.opacity);
-    canvas.drawPath(skPath(COMPANION_GROUND.d), ground);
-    canvas.restore();
-    canvas.translate(COMPANION_ORIGIN.x, COMPANION_ORIGIN.y);
-    paintLayers(canvas, companionLayers(kind, colours));
+    paintLayers(canvas, avatarBackdrop(sceneSkies[scene], sceneByKey(scene).accent2));
+    paintLayers(canvas, companionLayers(spec, size <= SMALL_AVATAR));
   });
 }
 
@@ -125,16 +112,17 @@ export const Avatar = memo(function Avatar({ spec, size, name, scene }: AvatarPr
 });
 
 export interface CompanionAvatarProps {
-  kind: CompanionKind;
-  colours: CompanionColours;
+  spec: CompanionSpec;
   size: number;
+  /** The companion's name. */
   name?: string;
   scene?: SceneKey;
 }
 
-/** A dog, cat or baby. Still in the original style; see companionGeometry.ts. */
-export const CompanionAvatar = memo(function CompanionAvatar({ kind, colours, size, name, scene }: CompanionAvatarProps) {
+/** A dog, cat or baby. A companion belongs to its person, not to a village. */
+export const CompanionAvatar = memo(function CompanionAvatar({ spec, size, name, scene }: CompanionAvatarProps) {
   const current = useScene().palette.key;
-  const label = name ? `${name}, ${kind}` : kind[0].toUpperCase() + kind.slice(1);
-  return <Round size={size} label={label} picture={recordCompanion(kind, colours, size, scene ?? current)} />;
+  const kind = CompanionKit.kinds[spec.kind] ?? 'Companion';
+  const label = name ? `${name}, ${kind.toLowerCase()}` : kind;
+  return <Round size={size} label={label} picture={recordCompanion(spec, size, scene ?? current)} />;
 });

@@ -29,8 +29,12 @@ colour, so any colour shades correctly.
   so the match is real.
 - **Under 44pt** a face drops teeth, blush, lashes, earrings, buttons, temple
   arms and hair highlights, and its lines thicken.
-- **Companions** (dog, cat, baby) are still in the original flat style. Redraw
-  them in the new kit before the Me tab puts them on screen.
+- **Companions** (dog, cat, baby) are in the same kit: fur on a natural slider
+  or any colour, three ear shapes for dogs, short or fluffy cats, markings
+  (eye patch, blaze, spots; tabby, patch, tuxedo) in any colour, eye colour,
+  a collar, bandana or bow; babies get the skin slider, four hair options, any
+  onesie colour, and a bow, beanie or pacifier. Checked against the lab the
+  same way: 78 cases, mean difference 0.003/255 per pixel.
 - **The in-app creator** (T1.8) should not show the small size previews the lab
   has; those are for checking the art, not for making a face.
 
@@ -39,13 +43,14 @@ colour, so any colour shades correctly.
 - **Type-checked against the real libraries.** `npm run typecheck` passes with
   TypeScript 6 against the actual React Native 0.86, Expo SDK 57, Skia and
   Reanimated 4 types — app code, tests, tools and config.
-- **74 tests pass** (`npm test`):
+- **84 tests pass** (`npm test`):
   - **Avatars.** Every path of every option parses; no hairstyle or extra
     leaves the frame; shadows are darker and highlights lighter than their base
     at the same hue; small faces drop their detail; a spec read back from the
     database is repaired rather than failing to draw.
-  - **Companions** match the prototype's own `avatar()`, lifted out of
-    `design/Tahan.dc.html` and run as-is, shape for shape.
+  - **Companions** get the same checks: every path of every kind and option
+    parses, nothing leaves the frame, every option draws something different,
+    and a companion read back from the database is repaired to fit its kind.
   - **Parser.** Accepts absolute `M L Q C Z` with implicit repetition; throws on
     every relative command, both arc forms, `H V S T`, and malformed input.
   - **Palettes and skies** re-read `design/tahan_palettes.dart` and the prototype

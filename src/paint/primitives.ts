@@ -138,13 +138,22 @@ export function PS(d: string, stroke: string, width: number, opacity = 1): Layer
  * it is ordinary absolute path data like everything else.
  */
 export function RING(cx: number, cy: number, r: number, stroke: string, width: number, opacity = 1): Layer {
-  const k = +(0.5522847498 * r).toFixed(3);
+  return OVAL_RING(cx, cy, r, r, stroke, width, opacity);
+}
+
+/** An outlined ellipse, as four cubics. */
+export function OVAL_RING(
+  cx: number, cy: number, rx: number, ry: number,
+  stroke: string, width: number, opacity = 1,
+): Layer {
+  const kx = 0.5522847498 * rx;
+  const ky = 0.5522847498 * ry;
   const f = (n: number) => +n.toFixed(3);
-  const d = `M${f(cx + r)} ${f(cy)} `
-    + `C${f(cx + r)} ${f(cy + k)} ${f(cx + k)} ${f(cy + r)} ${f(cx)} ${f(cy + r)} `
-    + `C${f(cx - k)} ${f(cy + r)} ${f(cx - r)} ${f(cy + k)} ${f(cx - r)} ${f(cy)} `
-    + `C${f(cx - r)} ${f(cy - k)} ${f(cx - k)} ${f(cy - r)} ${f(cx)} ${f(cy - r)} `
-    + `C${f(cx + k)} ${f(cy - r)} ${f(cx + r)} ${f(cy - k)} ${f(cx + r)} ${f(cy)} Z`;
+  const d = `M${f(cx + rx)} ${f(cy)} `
+    + `C${f(cx + rx)} ${f(cy + ky)} ${f(cx + kx)} ${f(cy + ry)} ${f(cx)} ${f(cy + ry)} `
+    + `C${f(cx - kx)} ${f(cy + ry)} ${f(cx - rx)} ${f(cy + ky)} ${f(cx - rx)} ${f(cy)} `
+    + `C${f(cx - rx)} ${f(cy - ky)} ${f(cx - kx)} ${f(cy - ry)} ${f(cx)} ${f(cy - ry)} `
+    + `C${f(cx + kx)} ${f(cy - ry)} ${f(cx + rx)} ${f(cy - ky)} ${f(cx + rx)} ${f(cy)} Z`;
   return PS(d, stroke, width, opacity);
 }
 

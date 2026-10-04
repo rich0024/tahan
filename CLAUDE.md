@@ -32,8 +32,10 @@ stop when its definition of done is met.
   grew into this when the owner chose the detailed, recolourable kit). No photo
   upload, no crop, no image hosting; do not add photo avatars. Shadows and
   highlights are derived from each base colour, so never add colour variants as
-  new art. The kit was designed in `design/avatar-lab.html`; the app's geometry
-  is `src/paint/avatarGeometry.ts`, and that file is now the source of truth.
+  new art. Companions (dog, cat, baby) follow the same rule with
+  `CompanionSpec`. The kit was designed in `design/avatar-lab.html`; the app's
+  geometry is `src/paint/avatarGeometry.ts` and `companionGeometry.ts`, and
+  those files are now the source of truth.
 - **A village is the permission boundary.** Everything that is not a user's own
   document lives under `/villages/{villageId}/`. Rules are written against
   membership.

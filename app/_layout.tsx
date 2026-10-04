@@ -14,12 +14,14 @@ import { Caprasimo_400Regular } from '@expo-google-fonts/caprasimo';
 import { Figtree_400Regular, Figtree_600SemiBold } from '@expo-google-fonts/figtree';
 
 import { warmAvatarPaths } from '../src/paint/avatarGeometry.ts';
+import { warmCompanionPaths } from '../src/paint/companionGeometry.ts';
 import { SceneProvider } from '../src/theme/SceneProvider.tsx';
 import { fonts } from '../src/theme/tokens.ts';
 
 // Parse every authored path at launch. A bad path throws here, on the first
 // run, not on whichever frame first draws it.
 warmAvatarPaths();
+warmCompanionPaths();
 
 void SplashScreen.preventAutoHideAsync();
 

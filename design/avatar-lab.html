@@ -93,6 +93,12 @@ input[type="color"] { width: 40px; height: 32px; border: 1px solid var(--line); 
 .face:hover { background: var(--raised); }
 .face svg { width: 100%; max-width: 96px; height: auto; }
 .face span { font-size: 13px; font-weight: 600; }
+.faces.pets { grid-template-columns: repeat(9, minmax(0, 1fr)); }
+@media (max-width: 900px) { .faces.pets { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.modes { display: flex; gap: 4px; padding: 4px; border-radius: var(--r-pill); background: var(--raised); }
+.modes button { min-height: 40px; padding: 0 18px; border: 0; border-radius: var(--r-pill); background: transparent; font-weight: 600; cursor: pointer; }
+.modes button[aria-pressed="true"] { background: var(--ink); color: var(--raised); }
+.via { font-weight: 400; color: var(--ink-soft); }
 .feed { display: grid; gap: 8px; }
 .feed-row { display: flex; align-items: center; gap: 10px; background: var(--raised); border-radius: 12px; padding: 8px 12px; min-width: 0; }
 .feed-row p { margin: 0; font-size: 14px; min-width: 0; }
@@ -114,8 +120,10 @@ pre.spec { margin: 0; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monosp
   .actions { justify-content: start; gap: 8px; }
   .btn { min-height: 40px; padding: 0 14px; font-size: 14px; }
   .copied, .spec, .jump { grid-column: 1 / -1; justify-self: stretch; }
+  .modes { grid-column: 1 / -1; justify-self: start; }
+  .modes button { min-height: 34px; padding: 0 14px; font-size: 13px; }
   .jump { display: flex; flex-wrap: nowrap; overflow-x: auto; justify-content: start; scrollbar-width: none; max-width: 100%; }
-  .part { scroll-margin-top: 290px; }
+  .part { scroll-margin-top: 330px; }
 }
 </style>
 
@@ -123,11 +131,15 @@ pre.spec { margin: 0; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monosp
   <header>
     <h3>Tahan · draft for review</h3>
     <h1>Avatar lab</h1>
-    <p class="lede">A first pass at Tahan's new faces: more detail, and colours you set yourself instead of a fixed set of variants. Change anything here. Nothing touches the app until you're happy with it.</p>
+    <p class="lede">Tahan's faces, and now their companions: more detail, and colours you set yourself instead of a fixed set of variants. Change anything here. Nothing touches the app until you're happy with it.</p>
   </header>
 
   <section class="bench" aria-label="Face editor">
     <div class="stage">
+      <div class="modes" id="modes" role="group" aria-label="Who you're making">
+        <button type="button" data-mode="person">Person</button>
+        <button type="button" data-mode="pet">Companion</button>
+      </div>
       <div class="hero" id="hero"></div>
       <div class="sizes" id="sizes" aria-label="The same face at the sizes the app uses"></div>
       <div class="skies" id="skies" role="group" aria-label="Village sky"></div>
@@ -146,6 +158,8 @@ pre.spec { margin: 0; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monosp
   <section class="village" aria-labelledby="village-h">
     <div class="part-head"><h2 id="village-h">A village of faces</h2><span class="picked">Tap one to edit it</span></div>
     <div class="faces" id="faces"></div>
+    <h3>Companions</h3>
+    <div class="faces pets" id="pets"></div>
     <h3>At feed size</h3>
     <div class="feed" id="feed"></div>
     <p class="note">The feed row is where a face is seen most. Under 44 points the fine detail (teeth, blush, lashes, earrings, buttons) drops away and lines thicken, so a face stays a face instead of turning to noise.</p>
@@ -629,6 +643,271 @@ const PRESETS = [
 ];
 
 
+// Tahan companions v2 — dog, cat and baby in the detailed kit.
+// Same rules as the people: a 200×200 box, absolute M L Q C Z paths only, one
+// base colour per part with shading derived in OKLab. Needs FACE (face.js)
+// loaded first for its colour helpers.
+
+const PET = (() => {
+  const { tone, along } = FACE;
+
+  const KINDS = ['Dog', 'Cat', 'Baby'];
+  const STYLES = { 0: ['Floppy ears', 'Pointy ears', 'Folded ears'], 1: ['Short fur', 'Fluffy'], 2: ['Tuft', 'Curls', 'Wisps', 'Bald'] };
+  const MARKINGS = { 0: ['None', 'Eye patch', 'Blaze', 'Spots'], 1: ['None', 'Tabby', 'Patch', 'Tuxedo'], 2: ['None'] };
+  const ACCESSORIES = { 0: ['None', 'Collar', 'Bandana', 'Bow'], 1: ['None', 'Collar', 'Bandana', 'Bow'], 2: ['None', 'Bow', 'Beanie', 'Pacifier'] };
+  const FUR = ['#F4EFE7', '#EBD9B8', '#D9A55C', '#B8692F', '#7A4E2E', '#4F3324', '#8E8A86', '#252220'];
+
+  const INK = '#2A1E19';
+  const WHITE = '#FFFFFF';
+  const PINK = '#E8A9A0';
+  const TONGUE = '#E07A6A';
+  const BLUSH = '#E8735F';
+  const GOLD = '#E3B04B';
+
+  // ------------------------------------------------------------------- svg
+  const a = (o) => Object.entries(o).filter(([, v]) => v !== undefined && v !== null).map(([k, v]) => `${k}="${v}"`).join(' ');
+  const P = (d, fill, o = {}) => `<path ${a({ d, fill, ...o })}/>`;
+  const S = (d, stroke, w, o = {}) => `<path ${a({ d, fill: 'none', stroke, 'stroke-width': w, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', ...o })}/>`;
+  const C = (cx, cy, r, fill, o = {}) => `<circle ${a({ cx, cy, r, fill, ...o })}/>`;
+  const E = (cx, cy, rx, ry, fill, o = {}) => `<ellipse ${a({ cx, cy, rx, ry, fill, ...o })}/>`;
+  const mirror = (d) => d.replace(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g, (_, x, y) => `${+(200 - x).toFixed(2)} ${y}`);
+  const both = (d, fn) => fn(d) + fn(mirror(d));
+
+  const DOG_HEAD = 'M58 100 C58 66 78 50 100 50 C122 50 142 66 142 100 C142 128 124 146 100 146 C76 146 58 128 58 100 Z';
+  const CAT_HEAD = 'M60 106 C58 76 76 58 100 58 C124 58 142 76 140 106 C140 130 122 146 100 146 C78 146 60 130 60 106 Z';
+  const BABY_HEAD = 'M60 102 C60 68 78 52 100 52 C122 52 140 68 140 102 C140 130 122 146 100 146 C78 146 60 130 60 102 Z';
+  const CHEST = 'M28 200 C32 168 60 150 100 150 C140 150 168 168 172 200 Z';
+
+  let uid = 0;
+
+  /**
+   * spec: { kind 0 dog | 1 cat | 2 baby, mainColor (fur, or a baby's onesie),
+   *         skin (0–1, baby), hairColor (baby), style, markings, markingColor,
+   *         eyeColor, accessory, accessoryColor }
+   */
+  function svg(spec, opts = {}) {
+    const size = opts.size ?? 200;
+    const small = size <= 44;
+    const k = small ? 1.45 : 1;
+    const id = 'p' + (uid++);
+    const out = [];
+    const push = (...x) => out.push(...x);
+
+    const sky = opts.sky;
+    if (sky) {
+      push(`<defs><linearGradient id="${id}s" x1="0" y1="0" x2="0" y2="1">${sky.stops.map((c, i) => `<stop offset="${sky.positions[i]}" stop-color="${c}"/>`).join('')}</linearGradient></defs>`);
+      push(`<rect width="200" height="200" fill="url(#${id}s)"/>`);
+      if (opts.ground) push(P('M0 200 L0 172 C50 160 130 158 200 168 L200 200 Z', opts.ground, { opacity: 0.45 }));
+    }
+    push('<g transform="translate(100 105) scale(1.1) translate(-100 -100)">');
+    if (spec.kind === 0) push(dog(spec, small, k, id));
+    else if (spec.kind === 1) push(cat(spec, small, k, id));
+    else push(baby(spec, small, k, id));
+    push('</g>');
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="${size}" height="${size}" role="img" aria-label="${opts.label ?? 'Companion'}" style="display:block;border-radius:50%">${out.join('')}</svg>`;
+  }
+
+  // ------------------------------------------------------------------ fur
+  function furTones(main) {
+    return {
+      main,
+      shade: tone(main, -0.09, 1.05),
+      deep: tone(main, -0.17, 1.1),
+      light: tone(main, 0.08, 0.85),
+      muzzle: tone(main, 0.12, 0.6),
+    };
+  }
+
+  // ------------------------------------------------------------------ dog
+  function dog(s, small, k, id) {
+    const f = furTones(s.mainColor);
+    const m = s.markingColor;
+    let o = '';
+    // body
+    o += P(CHEST, f.main) + both('M28 200 C31 184 40 172 52 164 C50 178 50 190 52 200 Z', (d) => P(d, f.shade));
+    o += P('M74 146 C82 158 118 158 126 146 L128 152 C118 164 82 164 72 152 Z', f.shade, { opacity: 0.7 });
+    if (s.markings === 3) o += C(66, 182, 7, m) + C(138, 176, 5, m) + C(124, 194, 6, m);
+    if (s.markings === 2) o += P('M84 152 C90 168 110 168 116 152 C110 160 90 160 84 152 Z', m); // blaze runs onto the chest
+    // ears behind (floppy hang at the sides; drawn before the head)
+    if (s.style === 0) o += both('M66 64 C50 62 40 82 41 106 C42 122 50 132 61 128 C66 112 68 92 72 70 Z', (d) => P(d, f.shade));
+    // head
+    o += P(DOG_HEAD, f.main);
+    o += `<defs><clipPath id="${id}h"><path d="${DOG_HEAD}"/></clipPath></defs><g clip-path="url(#${id}h)">`;
+    o += P('M128 60 C144 80 146 116 120 146 L150 146 L150 60 Z', f.shade, { opacity: 0.5 });
+    if (s.markings === 1) o += E(83, 92, 15, 13, m);
+    if (s.markings === 2) o += P('M93 46 C95 62 96 78 92 96 L108 96 C104 78 105 62 107 46 Z', m);
+    if (s.markings === 3) o += C(122, 66, 8, m) + C(70, 118, 6, m);
+    o += '</g>';
+    // ears in front
+    if (s.style === 1) {
+      o += both('M70 72 L62 30 C74 34 86 46 92 56 Z', (d) => P(d, f.main));
+      if (!small) o += both('M72 64 L67 40 C75 44 83 52 86 57 Z', (d) => P(d, PINK, { opacity: 0.55 }));
+    }
+    if (s.style === 2) o += both('M64 66 C58 48 70 38 86 44 C90 52 86 60 80 64 C74 68 68 68 64 66 Z', (d) => P(d, f.shade));
+    // muzzle
+    o += E(100, 118, 25, 19, s.markings === 2 ? m : f.muzzle);
+    o += E(100, 128, 18, 9, f.shade, { opacity: 0.25 });
+    // eyes
+    o += eyesRound(84, 116, 92, s.eyeColor, small, k);
+    if (!small) o += both('M77 82 C80 79 85 79 88 81', (d) => S(d, f.deep, 3, { opacity: 0.6 }));
+    // nose and mouth
+    o += P('M89 108 C89 101 111 101 111 108 C111 115 104 118 100 118 C96 118 89 115 89 108 Z', INK);
+    if (!small) o += E(95, 105, 4, 2, WHITE, { opacity: 0.6 });
+    o += S('M100 118 L100 124', INK, 2.2 * k) + both('M100 124 C96 130 89 130 86 125', (d) => S(d, INK, 2.2 * k));
+    if (!small) o += P('M94 127 C94 136 106 136 106 127 C103 129 97 129 94 127 Z', TONGUE);
+    o += accessory(s, small, 'pet');
+    return o;
+  }
+
+  // ------------------------------------------------------------------ cat
+  function cat(s, small, k, id) {
+    const f = furTones(s.mainColor);
+    const m = s.markingColor;
+    let o = '';
+    o += P(CHEST, f.main) + both('M28 200 C31 184 40 172 52 164 C50 178 50 190 52 200 Z', (d) => P(d, f.shade));
+    if (s.style === 1 && !small) o += P('M70 150 L78 162 L84 154 L92 168 L100 156 L108 168 L116 154 L122 162 L130 150 C118 158 82 158 70 150 Z', f.light); // chest fluff
+    if (s.markings === 3) o += P('M80 152 C86 176 92 192 100 200 C108 192 114 176 120 152 C112 158 88 158 80 152 Z', m); // tuxedo bib
+    // ears
+    o += both('M66 90 L62 40 C76 44 90 56 94 64 Z', (d) => P(d, f.main));
+    if (!small) o += both('M70 82 L68 52 C76 56 84 62 87 66 Z', (d) => P(d, PINK, { opacity: 0.75 }));
+    if (s.style === 1 && !small) o += both('M64 44 L60 34 L67 40 Z', (d) => P(d, f.main));
+    // head
+    o += P(CAT_HEAD, f.main);
+    if (s.style === 1) o += both('M62 112 L50 118 L60 122 L52 132 L64 132 L60 140 L72 138', (d) => P(d + ' Z', f.main));
+    o += `<defs><clipPath id="${id}h"><path d="${CAT_HEAD}"/></clipPath></defs><g clip-path="url(#${id}h)">`;
+    o += P('M128 66 C144 86 146 118 120 146 L150 146 L150 66 Z', f.shade, { opacity: 0.5 });
+    if (s.markings === 1) {
+      o += S('M100 62 L100 78', m, 3.4 * k) + S('M90 64 L92 77', m, 3 * k) + S('M110 64 L108 77', m, 3 * k);
+      o += both('M60 104 L72 106', (d) => S(d, m, 3 * k)) + both('M61 114 L71 114', (d) => S(d, m, 3 * k));
+    }
+    if (s.markings === 2) o += P('M58 58 L104 58 C100 72 92 84 80 92 C70 96 62 96 58 94 Z', m);
+    if (s.markings === 3) o += P('M86 146 C86 126 92 116 100 116 C108 116 114 126 114 146 Z', m);
+    o += '</g>';
+    // eyes — almond with a slit pupil
+    o += both('M74 100 C78 92 90 92 94 100 C90 108 78 108 74 100 Z', (d) => P(d, small ? INK : s.eyeColor));
+    if (!small) {
+      o += E(84, 100, 1.9, 5.6, INK) + E(116, 100, 1.9, 5.6, INK);
+      o += C(87, 97.5, 1.4, WHITE) + C(119, 97.5, 1.4, WHITE);
+      o += both('M74 100 C78 92 90 92 94 100', (d) => S(d, INK, 2));
+    }
+    // nose, mouth, whiskers
+    o += P('M95 113 C95 111 105 111 105 113 C104 116 102 118 100 118 C98 118 96 116 95 113 Z', PINK);
+    o += S('M100 118 L100 122', INK, 1.8 * k) + both('M100 122 C97 126 92 126 90 123', (d) => S(d, INK, 1.8 * k));
+    if (!small) {
+      o += both('M84 118 L60 114', (d) => S(d, INK, 1.1, { opacity: 0.45 })) + both('M84 122 L60 124', (d) => S(d, INK, 1.1, { opacity: 0.45 }));
+    }
+    o += accessory(s, small, 'pet');
+    return o;
+  }
+
+  // ----------------------------------------------------------------- baby
+  function baby(s, small, k, id) {
+    const skin = along(FACE.SKIN, s.skin);
+    const shade = tone(skin, -0.075, 1.15);
+    const light = tone(skin, 0.045, 0.9);
+    const hair = s.hairColor;
+    const top = s.mainColor;
+    const topShade = tone(top, -0.09, 1.05);
+    const topLight = tone(top, 0.07, 0.95);
+    let o = '';
+    // onesie
+    o += P('M34 200 C38 174 64 158 100 158 C136 158 162 174 166 200 Z', top) + both('M34 200 C37 186 45 176 56 170 C54 182 54 192 56 200 Z', (d) => P(d, topShade));
+    o += P('M84 158 C88 168 112 168 116 158 C110 162 90 162 84 158 Z', shade);
+    o += S('M82 158 C88 170 112 170 118 158', topLight, 3.2);
+    if (!small) o += C(100, 182, 2.4, topLight) + C(100, 194, 2.4, topLight);
+    // neck
+    o += P('M88 138 L112 138 L112 160 C106 164 94 164 88 160 Z', skin);
+    // ears
+    o += both('M62 98 C55 95 51 101 53 108 C55 114 61 116 65 112 Z', (d) => P(d, skin));
+    // head
+    o += P(BABY_HEAD, skin);
+    o += `<defs><clipPath id="${id}h"><path d="${BABY_HEAD}"/></clipPath></defs><g clip-path="url(#${id}h)">`;
+    o += P('M126 62 C140 80 142 116 120 146 L146 146 L146 62 Z', shade, { opacity: 0.5 });
+    o += E(84, 64, 12, 6, light, { opacity: 0.7 });
+    o += '</g>';
+    // hair
+    if (s.style === 0) o += S('M96 54 C90 42 104 34 110 42 C114 48 106 54 102 50', hair, 4.6 * k); // tuft
+    if (s.style === 1) o += [[84, 58, 7], [96, 53, 8], [108, 53, 8], [120, 58, 7]].map(([x, y, r]) => C(x, y, r, hair)).join('')
+      + (small ? '' : [[94, 50], [107, 50]].map(([x, y]) => C(x, y, 2.4, tone(hair, 0.1), { opacity: 0.8 })).join(''));
+    if (s.style === 2) o += ['M88 56 C88 48 92 44 96 42', 'M100 54 C100 46 102 42 106 40', 'M112 56 C112 48 114 46 118 44'].map((d) => S(d, hair, 2.6 * k)).join('');
+    // cheeks, eyes, brows
+    if (!small) o += E(76, 120, 9, 5.5, BLUSH, { opacity: 0.28 }) + E(124, 120, 9, 5.5, BLUSH, { opacity: 0.28 });
+    o += C(84, 104, small ? 5.2 : 6.2, INK) + C(116, 104, small ? 5.2 : 6.2, INK);
+    o += C(86.4, 101.4, small ? 1.6 : 2.2, WHITE) + C(118.4, 101.4, small ? 1.6 : 2.2, WHITE);
+    if (!small) o += C(82, 106.5, 0.9, WHITE, { opacity: 0.8 }) + C(114, 106.5, 0.9, WHITE, { opacity: 0.8 });
+    if (!small) o += both('M77 92 C81 89 87 89 90 91', (d) => S(d, tone(hair, 0.1), 2.4, { opacity: 0.7 }));
+    // nose and mouth
+    o += S('M98 113 C99 115 101 115 102 113', tone(skin, -0.3, 1.1), 2 * k, { opacity: 0.6 });
+    if (s.accessory !== 3) {
+      o += small ? S('M93 123 C97 128 103 128 107 123', '#7A2E28', 2.4 * k)
+        : P('M92 122 C96 124 104 124 108 122 C107 129 103 132 100 132 C97 132 93 129 92 122 Z', '#7A2E28') + P('M95 128.5 C97.5 126.5 102.5 126.5 105 128.5 C103 130.6 97 130.6 95 128.5 Z', TONGUE);
+    }
+    o += accessory(s, small, 'baby');
+    return o;
+  }
+
+  // ---------------------------------------------------- shared helpers
+  function eyesRound(xl, xr, y, iris, small, k) {
+    if (small) return C(xl, y, 5, INK) + C(xr, y, 5, INK) + C(xl + 1.5, y - 1.6, 1.4, WHITE) + C(xr + 1.5, y - 1.6, 1.4, WHITE);
+    return [xl, xr].map((x) => C(x, y, 7, iris) + C(x, y, 4.2, INK) + C(x + 2.3, y - 2.4, 2, WHITE) + C(x - 2, y + 2.4, 0.9, WHITE, { opacity: 0.8 })
+      + S(`M${x - 7.5} ${y - 2} C${x - 4} ${y - 8} ${x + 4} ${y - 8} ${x + 7.5} ${y - 2}`, INK, 2.2)).join('');
+  }
+
+  function accessory(s, small, who) {
+    const c = s.accessoryColor;
+    const sh = tone(c, -0.1, 1.05);
+    if (who === 'pet') {
+      if (s.accessory === 1) { // collar with a tag
+        return P('M66 146 C80 157 120 157 134 146 L136 155 C120 168 80 168 64 155 Z', c)
+          + P('M64 155 C80 168 120 168 136 155 L136 152 C120 164 80 164 64 152 Z', sh, { opacity: 0.6 })
+          + C(100, 170, 6, GOLD) + (small ? '' : C(98, 168, 1.6, WHITE, { opacity: 0.7 }));
+      }
+      if (s.accessory === 2) { // bandana
+        return P('M64 148 C80 160 120 160 136 148 L138 158 C126 166 112 170 100 190 C88 170 74 166 62 158 Z', c)
+          + P('M100 190 C108 176 118 168 132 162 C122 168 110 176 100 190 Z', sh, { opacity: 0.6 })
+          + (small ? '' : [[86, 166], [100, 176], [114, 166], [94, 158], [108, 158]].map(([x, y]) => C(x, y, 1.8, '#FFFFFF', { opacity: 0.8 })).join(''));
+      }
+      if (s.accessory === 3) return bow(122, 58, c, sh, small);
+      return '';
+    }
+    // baby
+    if (s.accessory === 1) return S('M64 82 C70 60 130 60 136 82', c, 4.2) + bow(118, 60, c, sh, small);
+    if (s.accessory === 2) { // beanie
+      return P('M58 86 C56 54 78 38 100 38 C122 38 144 54 142 86 C126 80 74 80 58 86 Z', c)
+        + P('M56 86 C74 78 126 78 144 86 L144 96 C126 88 74 88 56 96 Z', sh)
+        + (small ? '' : [70, 82, 94, 106, 118, 130].map((x) => S(`M${x} 84 L${x} 92`, tone(c, -0.18), 1.6, { opacity: 0.5 })).join(''))
+        + C(100, 34, 9, tone(c, 0.12, 0.9));
+    }
+    if (s.accessory === 3) { // pacifier
+      return E(100, 126, 15, 9, c) + E(100, 126, 15, 9, 'none', { stroke: sh, 'stroke-width': 1.6 })
+        + C(100, 126, 4, tone(c, 0.15, 0.9)) + C(100, 136, 6, 'none', { stroke: sh, 'stroke-width': 2.4 });
+    }
+    return '';
+  }
+
+  function bow(x, y, c, sh, small) {
+    return P(`M${x} ${y} C${x - 10} ${y - 14} ${x - 22} ${y - 6} ${x - 18} ${y + 4} C${x - 14} ${y + 12} ${x - 4} ${y + 6} ${x} ${y} Z`, c)
+      + P(`M${x} ${y} C${x + 10} ${y - 14} ${x + 22} ${y - 6} ${x + 18} ${y + 4} C${x + 14} ${y + 12} ${x + 4} ${y + 6} ${x} ${y} Z`, c)
+      + (small ? '' : P(`M${x} ${y} C${x - 8} ${y - 6} ${x - 14} ${y - 2} ${x - 14} ${y + 2} C${x - 10} ${y} ${x - 4} ${y + 2} ${x} ${y} Z`, sh, { opacity: 0.6 }))
+      + C(x, y, 4.2, sh);
+  }
+
+  return { svg, KINDS, STYLES, MARKINGS, ACCESSORIES, FUR };
+})();
+
+
+const PETS = [
+  { name: 'Bandit', kind: 0, mainColor: '#D9A55C', skin: 0.3, hairColor: '#3A2A20', style: 0, markings: 2, markingColor: '#F4EFE7', eyeColor: '#6B4A2E', accessory: 1, accessoryColor: '#C67139' },
+  { name: 'Kuya',   kind: 0, mainColor: '#4F3324', skin: 0.3, hairColor: '#3A2A20', style: 1, markings: 0, markingColor: '#D9A55C', eyeColor: '#6B4A2E', accessory: 2, accessoryColor: '#3F6F8A' },
+  { name: 'Pepper', kind: 0, mainColor: '#F4EFE7', skin: 0.3, hairColor: '#3A2A20', style: 2, markings: 1, markingColor: '#4F3324', eyeColor: '#3A2A20', accessory: 3, accessoryColor: '#C96B7A' },
+  { name: 'Miso',   kind: 1, mainColor: '#B8692F', skin: 0.3, hairColor: '#3A2A20', style: 0, markings: 1, markingColor: '#7A4E2E', eyeColor: '#B9A23A', accessory: 1, accessoryColor: '#3F6F8A' },
+  { name: 'Luna',   kind: 1, mainColor: '#252220', skin: 0.3, hairColor: '#3A2A20', style: 1, markings: 3, markingColor: '#F4EFE7', eyeColor: '#8DA34A', accessory: 3, accessoryColor: '#C96B7A' },
+  { name: 'Tofu',   kind: 1, mainColor: '#F4EFE7', skin: 0.3, hairColor: '#3A2A20', style: 0, markings: 2, markingColor: '#8E8A86', eyeColor: '#3E6E8E', accessory: 0, accessoryColor: '#C67139' },
+  { name: 'Baby Ana', kind: 2, mainColor: '#F0B8C0', skin: 0.45, hairColor: '#3A2A20', style: 0, markings: 0, markingColor: '#F4EFE7', eyeColor: '#3A2A20', accessory: 1, accessoryColor: '#C96B7A' },
+  { name: 'Baby Leo', kind: 2, mainColor: '#BCD8E0', skin: 0.15, hairColor: '#D9AB60', style: 1, markings: 0, markingColor: '#F4EFE7', eyeColor: '#3A2A20', accessory: 3, accessoryColor: '#7A8A5E' },
+  { name: 'Baby Kai', kind: 2, mainColor: '#D9A55C', skin: 0.8, hairColor: '#1E1916', style: 2, markings: 0, markingColor: '#F4EFE7', eyeColor: '#3A2A20', accessory: 2, accessoryColor: '#5D8A6B' },
+];
+
 const SKIES = [
   { key: 'night', name: 'Night sky', stops: ['#2E2B25', '#474238', '#8C491A', '#D67F48'], positions: [0, 0.5, 0.82, 1], ground: '#7A8A5E' },
   { key: 'forest', name: 'Forest', stops: ['#CCDBB2', '#F0FAE1', '#E1EECC'], positions: [0, 0.6, 1], ground: '#B06A3C' },
@@ -644,40 +923,86 @@ const EYE_COLOURS = ['#3A2A20', '#6B4A2E', '#8A6A3A', '#4E7A52', '#3E6E8E', '#7C
 const CLOTH_COLOURS = ['#C67139', '#7A8A5E', '#3F6F8A', '#C96B7A', '#B0813F', '#F2ECE2', '#2E3440', '#D9663F'];
 const FRAME_COLOURS = ['#1E1916', '#4A4038', '#7A2E3A', '#B0813F', '#C67139', '#C9C2B8'];
 const EXTRA_COLOURS = ['#D9A441', '#C9C2B8', '#C96B7A', '#3F6F8A', '#7A8A5E', '#F2ECE2'];
+const PET_EYES = ['#6B4A2E', '#3A2A20', '#C9822E', '#B9A23A', '#8DA34A', '#3E6E8E'];
+const MARK_COLOURS = ['#F4EFE7', '#EBD9B8', '#D9A55C', '#B8692F', '#7A4E2E', '#8E8A86', '#252220'];
+const ONESIE_COLOURS = ['#F0B8C0', '#BCD8E0', '#F2ECE2', '#D9A55C', '#7A8A5E', '#C96B7A'];
 
 const store = {
   get(k, d) { try { const v = localStorage.getItem('tahan-lab:' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem('tahan-lab:' + k, JSON.stringify(v)); } catch {} },
 };
 
-const { name: _firstName, ...firstFace } = PRESETS[0];
-let spec = { ...firstFace, ...store.get('spec', {}) };
+const strip = ({ name, ...rest }) => rest;
+let mode = store.get('mode', 'person');
+let spec = { ...strip(PRESETS[0]), ...store.get('spec', {}) };
+let pet = { ...strip(PETS[0]), ...store.get('pet', {}) };
 let hairT = store.get('hairT', 0.95);
+let furT = store.get('furT', 0.3);
+let babyHairT = store.get('babyHairT', 0.15);
 let skyKey = store.get('sky', 'night');
 const sky = () => SKIES.find((s) => s.key === skyKey) ?? SKIES[0];
-const draw = (s, size, label) => FACE.svg(s, { size, sky: sky(), ground: sky().ground, label });
+const drawPerson = (s, size, label) => FACE.svg(s, { size, sky: sky(), ground: sky().ground, label });
+const drawPet = (s, size, label) => PET.svg(s, { size, sky: sky(), ground: sky().ground, label });
+const cur = () => (mode === 'person' ? spec : pet);
+const draw = (s, size, label) => (mode === 'person' ? drawPerson : drawPet)(s, size, label);
 
-const $ = (id) => document.getElementById(id);
-
-function gradientFor(stops) {
-  return `linear-gradient(90deg, ${stops.map((c, i) => `${c} ${(i / (stops.length - 1) * 100).toFixed(1)}%`).join(', ')})`;
+/** Keep a companion's style indices valid for its kind. */
+function fitPet(p) {
+  const k = p.kind;
+  return { ...p, style: p.style % PET.STYLES[k].length, markings: p.markings % PET.MARKINGS[k].length, accessory: p.accessory % PET.ACCESSORIES[k].length };
 }
 
-// ---------------------------------------------------------------- the kit
-const PARTS = [
-  { key: 'skin', title: 'Skin', colour: { type: 'range', id: 'skinRange', label: 'Tone', stops: FACE.SKIN, get: () => spec.skin, set: (t) => { spec.skin = t; } },
-    hint: 'One slider through natural skin tones. Shadows and highlights follow automatically.' },
-  { key: 'hair', title: 'Hair', options: FACE.HAIR_STYLES,
-    colour: { type: 'range', id: 'hairRange', label: 'Colour', stops: FACE.HAIR, get: () => hairT, set: (t) => { hairT = t; spec.hairColor = FACE.along(FACE.HAIR, t); }, custom: 'hairColor', customLabel: 'Any colour' } },
-  { key: 'eyes', title: 'Eyes', options: FACE.EYE_STYLES, colour: { type: 'swatches', id: 'eyeColour', label: 'Colour', field: 'eyeColor', list: EYE_COLOURS } },
-  { key: 'glasses', title: 'Glasses', options: FACE.GLASSES, colour: { type: 'swatches', id: 'frameColour', label: 'Frames', field: 'glassesColor', list: FRAME_COLOURS } },
-  { key: 'mouth', title: 'Mouth', options: FACE.MOUTHS },
-  { key: 'facial', title: 'Facial hair', options: FACE.FACIAL, hint: 'Takes the hair colour.' },
-  { key: 'extra', title: 'Extras', options: FACE.EXTRAS, colour: { type: 'swatches', id: 'extraColour', label: 'Colour', field: 'extraColor', list: EXTRA_COLOURS } },
-  { key: 'top', title: 'Clothes', options: FACE.TOPS, colour: { type: 'swatches', id: 'topColour', label: 'Colour', field: 'topColor', list: CLOTH_COLOURS } },
-];
+const $ = (id) => document.getElementById(id);
+const gradientFor = (stops) => `linear-gradient(90deg, ${stops.map((c, i) => `${c} ${(i / (stops.length - 1) * 100).toFixed(1)}%`).join(', ')})`;
+
+// ------------------------------------------------------------- the parts
+const range = (label, stops, get, set, custom) => ({ type: 'range', label, stops, get, set, custom });
+const swatches = (label, field, list) => ({ type: 'swatches', label, field, list });
+
+function personParts() {
+  return [
+    { key: 'skin', title: 'Skin', colour: range('Tone', FACE.SKIN, () => spec.skin, (t) => { spec.skin = t; }),
+      hint: 'One slider through natural skin tones. Shadows and highlights follow automatically.' },
+    { key: 'hair', title: 'Hair', options: FACE.HAIR_STYLES,
+      colour: range('Colour', FACE.HAIR, () => hairT, (t) => { hairT = t; spec.hairColor = FACE.along(FACE.HAIR, t); }, 'hairColor') },
+    { key: 'eyes', title: 'Eyes', options: FACE.EYE_STYLES, colour: swatches('Colour', 'eyeColor', EYE_COLOURS) },
+    { key: 'glasses', title: 'Glasses', options: FACE.GLASSES, colour: swatches('Frames', 'glassesColor', FRAME_COLOURS) },
+    { key: 'mouth', title: 'Mouth', options: FACE.MOUTHS },
+    { key: 'facial', title: 'Facial hair', options: FACE.FACIAL, hint: 'Takes the hair colour.' },
+    { key: 'extra', title: 'Extras', options: FACE.EXTRAS, colour: swatches('Colour', 'extraColor', EXTRA_COLOURS) },
+    { key: 'top', title: 'Clothes', options: FACE.TOPS, colour: swatches('Colour', 'topColor', CLOTH_COLOURS) },
+  ];
+}
+
+function petParts() {
+  const k = pet.kind;
+  const parts = [{ key: 'kind', title: 'Companion', options: PET.KINDS, hint: 'A companion belongs to you, not to a village. You post as yourself; the update wears their face.' }];
+  if (k === 2) {
+    parts.push(
+      { key: 'skin', title: 'Skin', colour: range('Tone', FACE.SKIN, () => pet.skin, (t) => { pet.skin = t; }) },
+      { key: 'style', title: 'Hair', options: PET.STYLES[2],
+        colour: range('Colour', FACE.HAIR, () => babyHairT, (t) => { babyHairT = t; pet.hairColor = FACE.along(FACE.HAIR, t); }, 'hairColor') },
+      { key: 'onesie', title: 'Onesie', colour: swatches('Colour', 'mainColor', ONESIE_COLOURS) },
+      { key: 'accessory', title: 'Extras', options: PET.ACCESSORIES[2], colour: swatches('Colour', 'accessoryColor', EXTRA_COLOURS) },
+    );
+  } else {
+    parts.push(
+      { key: 'fur', title: 'Fur', colour: range('Colour', PET.FUR, () => furT, (t) => { furT = t; pet.mainColor = FACE.along(PET.FUR, t); }, 'mainColor'),
+        hint: 'White, cream, gold, ginger, brown, chocolate, grey, black — or any colour.' },
+      { key: 'style', title: k === 0 ? 'Ears' : 'Coat', options: PET.STYLES[k] },
+      { key: 'markings', title: 'Markings', options: PET.MARKINGS[k], colour: swatches('Colour', 'markingColor', MARK_COLOURS) },
+      { key: 'eyes', title: 'Eyes', colour: swatches('Colour', 'eyeColor', PET_EYES) },
+      { key: 'accessory', title: 'Extras', options: PET.ACCESSORIES[k], colour: swatches('Colour', 'accessoryColor', EXTRA_COLOURS) },
+    );
+  }
+  return parts;
+}
+
+let PARTS = [];
+let observer = null;
 
 function buildKit() {
+  PARTS = mode === 'person' ? personParts() : petParts();
   const kit = $('kit');
   kit.innerHTML = PARTS.map((p) => `
     <section class="part" id="part-${p.key}" aria-labelledby="h-${p.key}">
@@ -690,143 +1015,182 @@ function buildKit() {
   for (const p of PARTS) {
     const c = p.colour;
     if (!c) continue;
+    const id = 'c-' + p.key;
     if (c.type === 'range') {
-      const r = $(c.id);
+      const r = $(id);
       r.style.setProperty('--track', gradientFor(c.stops));
       r.value = String(Math.round(c.get() * 1000));
       r.addEventListener('input', () => { c.set(+r.value / 1000); render(); });
-      if (c.custom) {
-        const pick = $(c.id + 'Custom');
-        pick.addEventListener('input', () => { spec[c.custom] = pick.value.toUpperCase(); render(); });
-      }
+      if (c.custom) $(id + 'Custom').addEventListener('input', (e) => { cur()[c.custom] = e.target.value.toUpperCase(); render(); });
     } else {
-      const wrap = $(c.id);
-      wrap.addEventListener('click', (e) => {
+      $(id).addEventListener('click', (e) => {
         const b = e.target.closest('[data-colour]');
-        if (!b) return;
-        spec[c.field] = b.dataset.colour; render();
+        if (b) { cur()[c.field] = b.dataset.colour; render(); }
       });
-      $(c.id + 'Custom').addEventListener('input', (e) => { spec[c.field] = e.target.value.toUpperCase(); render(); });
+      $(id + 'Custom').addEventListener('input', (e) => { cur()[c.field] = e.target.value.toUpperCase(); render(); });
     }
   }
-  kit.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-part]');
-    if (!b) return;
-    spec[b.dataset.part] = +b.dataset.value; render();
-  });
+  buildJump();
 }
 
 function colourRow(p) {
   const c = p.colour;
+  const id = 'c-' + p.key;
   if (c.type === 'range') {
-    return `<div class="colour"><label for="${c.id}">${c.label}</label>
-      <input type="range" id="${c.id}" min="0" max="1000" step="1">
-      ${c.custom ? `<input type="color" id="${c.id}Custom" aria-label="${c.customLabel}" title="${c.customLabel}">` : '<span></span>'}</div>`;
+    return `<div class="colour"><label for="${id}">${c.label}</label>
+      <input type="range" id="${id}" min="0" max="1000" step="1">
+      ${c.custom ? `<input type="color" id="${id}Custom" aria-label="Any colour" title="Any colour">` : '<span></span>'}</div>`;
   }
-  return `<div class="colour"><label for="${c.id}Custom">${c.label}</label>
-    <div class="swatches" id="${c.id}">${c.list.map((col) => `<button type="button" class="sw" data-colour="${col}" style="background:${col}" aria-label="${col}"></button>`).join('')}</div>
-    <input type="color" id="${c.id}Custom" aria-label="Any ${c.label.toLowerCase()} colour" title="Any colour"></div>`;
+  return `<div class="colour"><label for="${id}Custom">${c.label}</label>
+    <div class="swatches" id="${id}">${c.list.map((col) => `<button type="button" class="sw" data-colour="${col}" style="background:${col}" aria-label="${col}"></button>`).join('')}</div>
+    <input type="color" id="${id}Custom" aria-label="Any ${c.label.toLowerCase()} colour" title="Any colour"></div>`;
 }
 
-// ----------------------------------------------------------------- render
+$('kit').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-part]');
+  if (!b) return;
+  cur()[b.dataset.part] = +b.dataset.value;
+  if (mode === 'pet' && b.dataset.part === 'kind') { pet = fitPet(pet); buildKit(); }
+  render();
+});
+
+// ---------------------------------------------------------------- render
+const toSix = (hex) => (/^#[0-9a-f]{6}$/i.test(hex) ? hex.toLowerCase() : '#000000');
+
 function render() {
-  $('hero').innerHTML = draw(spec, 260, 'Your face');
+  const o = cur();
+  $('hero').innerHTML = draw(o, 260, mode === 'person' ? 'Your face' : 'Your companion');
   const USES = { 96: 'Me tab', 44: 'Header', 34: 'Status', 26: 'Feed' };
-  $('sizes').innerHTML = [96, 44, 34, 26].map((s) => `<figure>${draw(spec, s, `Your face at ${s} points, as on the ${USES[s]}`)}<figcaption>${USES[s]}<br>${s}</figcaption></figure>`).join('');
+  $('sizes').innerHTML = [96, 44, 34, 26].map((s) => `<figure>${draw(o, s, `At ${s} points, as on the ${USES[s]}`)}<figcaption>${USES[s]}<br>${s}</figcaption></figure>`).join('');
 
   for (const p of PARTS) {
     if (p.options) {
-      $('thumbs-' + p.key).innerHTML = p.options.map((name, i) =>
-        `<button type="button" class="thumb" data-part="${p.key}" data-value="${i}" aria-pressed="${spec[p.key] === i}" aria-label="${name}" title="${name}">${draw({ ...spec, [p.key]: i }, 52, name)}</button>`).join('');
-      $('picked-' + p.key).textContent = p.options[spec[p.key]] ?? '';
+      $('thumbs-' + p.key).innerHTML = p.options.map((name, i) => {
+        const variant = mode === 'pet' && p.key === 'kind' ? fitPet({ ...o, kind: i }) : { ...o, [p.key]: i };
+        return `<button type="button" class="thumb" data-part="${p.key}" data-value="${i}" aria-pressed="${o[p.key] === i}" aria-label="${name}" title="${name}">${draw(variant, 52, name)}</button>`;
+      }).join('');
+      $('picked-' + p.key).textContent = p.options[o[p.key]] ?? '';
     }
     const c = p.colour;
+    const id = 'c-' + p.key;
     if (c && c.type === 'swatches') {
-      for (const b of $(c.id).querySelectorAll('[data-colour]')) b.setAttribute('aria-pressed', String(b.dataset.colour.toUpperCase() === String(spec[c.field]).toUpperCase()));
-      $(c.id + 'Custom').value = toSix(spec[c.field]);
+      for (const b of $(id).querySelectorAll('[data-colour]')) b.setAttribute('aria-pressed', String(b.dataset.colour.toUpperCase() === String(o[c.field]).toUpperCase()));
+      $(id + 'Custom').value = toSix(o[c.field]);
     }
-    if (c && c.custom) $(c.id + 'Custom').value = toSix(spec[c.custom]);
+    if (c && c.custom) $(id + 'Custom').value = toSix(o[c.custom]);
   }
-  $('picked-skin').textContent = `${Math.round(spec.skin * 100)}%`;
-  $('picked-hair').textContent = FACE.HAIR_STYLES[spec.hair];
+  if ($('picked-skin')) $('picked-skin').textContent = `${Math.round(o.skin * 100)}%`;
 
   for (const b of document.querySelectorAll('.sky')) b.setAttribute('aria-pressed', String(b.dataset.sky === skyKey));
+  for (const b of document.querySelectorAll('[data-mode]')) b.setAttribute('aria-pressed', String(b.dataset.mode === mode));
   renderVillage();
-  store.set('spec', spec); store.set('hairT', hairT); store.set('sky', skyKey);
+  store.set('spec', spec); store.set('pet', pet); store.set('mode', mode);
+  store.set('hairT', hairT); store.set('furT', furT); store.set('babyHairT', babyHairT); store.set('sky', skyKey);
 }
 
-const toSix = (hex) => (/^#[0-9a-f]{6}$/i.test(hex) ? hex.toLowerCase() : '#000000');
-
-const POSTS = ['Back from the lake, phone nearly dead', 'Adobo on Sunday, bring rice', 'She lost her first tooth!', 'Thank you for the flowers', 'Walked 10k today', 'Who has the big pot?'];
+const POSTS = [
+  ['p', 0, 'Back from the lake, phone nearly dead'],
+  ['c', 0, 'Found the sock. Kept the sock.'],
+  ['p', 2, 'She lost her first tooth!'],
+  ['p', 3, 'Thank you for the flowers'],
+  ['c', 6, 'First word was "lola"'],
+  ['p', 5, 'Who has the big pot?'],
+];
 function renderVillage() {
-  $('faces').innerHTML = PRESETS.map((p, i) => `<button type="button" class="face" data-preset="${i}" aria-label="Edit ${p.name}">${draw(p, 88, p.name)}<span>${p.name}</span></button>`).join('');
-  $('feed').innerHTML = PRESETS.slice(0, 6).map((p, i) => `<div class="feed-row">${draw(p, 26, p.name)}<p><b>${p.name}</b> · ${POSTS[i]}</p></div>`).join('');
+  $('faces').innerHTML = PRESETS.map((p, i) => `<button type="button" class="face" data-preset="${i}" aria-label="Edit ${p.name}">${drawPerson(p, 88, p.name)}<span>${p.name}</span></button>`).join('');
+  $('pets').innerHTML = PETS.map((p, i) => `<button type="button" class="face" data-pet="${i}" aria-label="Edit ${p.name}">${drawPet(p, 88, p.name)}<span>${p.name}</span></button>`).join('');
+  $('feed').innerHTML = POSTS.map(([t, i, text]) => {
+    const who = t === 'p' ? PRESETS[i] : PETS[i];
+    const pic = t === 'p' ? drawPerson(who, 26, who.name) : drawPet(who, 26, who.name);
+    const by = t === 'p' ? `<b>${who.name}</b>` : `<b>${who.name}</b> <span class="via">via ${PRESETS[i === 6 ? 8 : 1].name}</span>`;
+    return `<div class="feed-row">${pic}<p>${by} · ${text}</p></div>`;
+  }).join('');
 }
 
-// ------------------------------------------------------------------ boot
-$('skies').innerHTML = SKIES.map((s) => `<button type="button" class="sky" data-sky="${s.key}" title="${s.name}" aria-label="${s.name}" style="background:linear-gradient(180deg, ${s.stops.join(', ')})"></button>`).join('');
-$('skies').addEventListener('click', (e) => { const b = e.target.closest('[data-sky]'); if (b) { skyKey = b.dataset.sky; render(); } });
-$('faces').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-preset]');
-  if (!b) return;
-  const { name, ...rest } = PRESETS[+b.dataset.preset];
-  spec = { ...rest }; hairT = nearestHairT(spec.hairColor); syncRanges(); render();
-  $('hero').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
-});
-$('surprise').addEventListener('click', () => {
-  const pick = (n) => Math.floor(Math.random() * n);
-  const one = (list) => list[pick(list.length)];
-  hairT = Math.random();
-  spec = {
-    skin: Math.random(), hair: pick(FACE.HAIR_STYLES.length), hairColor: FACE.along(FACE.HAIR, hairT),
-    eyes: pick(3), eyeColor: one(EYE_COLOURS), mouth: pick(4),
-    facial: Math.random() < 0.6 ? 0 : 1 + pick(4), glasses: Math.random() < 0.5 ? 0 : 1 + pick(4), glassesColor: one(FRAME_COLOURS),
-    top: pick(5), topColor: one(CLOTH_COLOURS), extra: Math.random() < 0.5 ? 0 : 1 + pick(5), extraColor: one(EXTRA_COLOURS),
-  };
-  syncRanges(); render();
-});
-$('copy').addEventListener('click', async () => {
-  const text = JSON.stringify(spec);
-  const out = $('spec'); out.textContent = text;
-  try { await navigator.clipboard.writeText(text); $('copied').textContent = 'Copied. Paste it to Claude to say "this one".'; out.hidden = true; }
-  catch { out.hidden = false; const r = document.createRange(); r.selectNodeContents(out); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); $('copied').textContent = 'Selected below. Copy it and paste it to Claude.'; }
-});
-
-function nearestHairT(hex) {
-  let best = 0, bestD = Infinity;
-  for (let i = 0; i <= 200; i++) {
-    const c = FACE.along(FACE.HAIR, i / 200);
-    const d = [1, 3, 5].reduce((s, j) => s + (parseInt(c.substr(j, 2), 16) - parseInt(hex.substr(j, 2), 16)) ** 2, 0);
-    if (d < bestD) { bestD = d; best = i / 200; }
-  }
-  return best;
-}
-function syncRanges() { $('skinRange').value = String(Math.round(spec.skin * 1000)); $('hairRange').value = String(Math.round(hairT * 1000)); }
-
-buildKit();
-render();
-buildJump();
-
+// ---------------------------------------------------------------- jump bar
 function buildJump() {
   const nav = $('jump');
   nav.innerHTML = PARTS.map((p) => `<a href="#part-${p.key}" data-jump="${p.key}">${p.title}</a>`).join('');
-  nav.addEventListener('click', (e) => {
-    const a = e.target.closest('[data-jump]');
-    if (!a) return;
-    e.preventDefault();
-    const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
-    document.getElementById('part-' + a.dataset.jump).scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
-  });
-  // Mark the part currently in view.
+  if (observer) observer.disconnect();
   if ('IntersectionObserver' in window) {
     const seen = new Map();
-    const io = new IntersectionObserver((entries) => {
+    observer = new IntersectionObserver((entries) => {
       for (const en of entries) seen.set(en.target.id, en.intersectionRatio);
       let best = null, bestR = 0;
       for (const [id, r] of seen) if (r > bestR) { best = id; bestR = r; }
       for (const a of nav.querySelectorAll('a')) a.toggleAttribute('aria-current', 'part-' + a.dataset.jump === best);
     }, { threshold: [0, 0.25, 0.5, 0.75, 1], rootMargin: '-35% 0px -35% 0px' });
-    for (const p of PARTS) io.observe(document.getElementById('part-' + p.key));
+    for (const p of PARTS) observer.observe(document.getElementById('part-' + p.key));
   }
 }
+$('jump').addEventListener('click', (e) => {
+  const a = e.target.closest('[data-jump]');
+  if (!a) return;
+  e.preventDefault();
+  const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.getElementById('part-' + a.dataset.jump).scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+});
+
+// ------------------------------------------------------------------ boot
+$('skies').innerHTML = SKIES.map((s) => `<button type="button" class="sky" data-sky="${s.key}" title="${s.name}" aria-label="${s.name}" style="background:linear-gradient(180deg, ${s.stops.join(', ')})"></button>`).join('');
+$('skies').addEventListener('click', (e) => { const b = e.target.closest('[data-sky]'); if (b) { skyKey = b.dataset.sky; render(); } });
+$('modes').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-mode]');
+  if (!b || b.dataset.mode === mode) return;
+  mode = b.dataset.mode; buildKit(); render();
+});
+const toEditor = () => $('hero').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+$('faces').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-preset]');
+  if (!b) return;
+  spec = strip(PRESETS[+b.dataset.preset]); hairT = nearestT(FACE.HAIR, spec.hairColor);
+  mode = 'person'; buildKit(); render(); toEditor();
+});
+$('pets').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-pet]');
+  if (!b) return;
+  pet = strip(PETS[+b.dataset.pet]); furT = nearestT(PET.FUR, pet.mainColor); babyHairT = nearestT(FACE.HAIR, pet.hairColor);
+  mode = 'pet'; buildKit(); render(); toEditor();
+});
+$('surprise').addEventListener('click', () => {
+  const pick = (n) => Math.floor(Math.random() * n);
+  const one = (list) => list[pick(list.length)];
+  if (mode === 'person') {
+    hairT = Math.random();
+    spec = {
+      skin: Math.random(), hair: pick(FACE.HAIR_STYLES.length), hairColor: FACE.along(FACE.HAIR, hairT),
+      eyes: pick(3), eyeColor: one(EYE_COLOURS), mouth: pick(4),
+      facial: Math.random() < 0.6 ? 0 : 1 + pick(4), glasses: Math.random() < 0.5 ? 0 : 1 + pick(4), glassesColor: one(FRAME_COLOURS),
+      top: pick(5), topColor: one(CLOTH_COLOURS), extra: Math.random() < 0.5 ? 0 : 1 + pick(5), extraColor: one(EXTRA_COLOURS),
+    };
+  } else {
+    const kind = pet.kind;
+    furT = Math.random(); babyHairT = Math.random();
+    pet = fitPet({
+      kind, mainColor: kind === 2 ? one(ONESIE_COLOURS) : FACE.along(PET.FUR, furT), skin: Math.random(), hairColor: FACE.along(FACE.HAIR, babyHairT),
+      style: pick(4), markings: Math.random() < 0.4 ? 0 : pick(4), markingColor: one(MARK_COLOURS), eyeColor: one(PET_EYES),
+      accessory: Math.random() < 0.3 ? 0 : pick(4), accessoryColor: one(EXTRA_COLOURS),
+    });
+  }
+  buildKit(); render();
+});
+$('copy').addEventListener('click', async () => {
+  const text = JSON.stringify({ type: mode === 'person' ? 'person' : PET.KINDS[pet.kind].toLowerCase(), ...cur() });
+  const out = $('spec'); out.textContent = text;
+  try { await navigator.clipboard.writeText(text); $('copied').textContent = 'Copied. Paste it to Claude to say "this one".'; out.hidden = true; }
+  catch { out.hidden = false; const r = document.createRange(); r.selectNodeContents(out); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); $('copied').textContent = 'Selected below. Copy it and paste it to Claude.'; }
+});
+
+function nearestT(stops, hex) {
+  let best = 0, bestD = Infinity;
+  for (let i = 0; i <= 200; i++) {
+    const c = FACE.along(stops, i / 200);
+    const d = [1, 3, 5].reduce((s, j) => s + (parseInt(c.substr(j, 2), 16) - parseInt(hex.substr(j, 2), 16)) ** 2, 0);
+    if (d < bestD) { bestD = d; best = i / 200; }
+  }
+  return best;
+}
+
+buildKit();
+render();
 </script>

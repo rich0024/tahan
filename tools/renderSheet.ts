@@ -9,12 +9,11 @@
 import { writeFileSync } from 'node:fs';
 
 import { AVATAR_BOX, avatarBackdrop, avatarLayers } from '../src/paint/avatarGeometry.ts';
-import { COMPANION_BOX, COMPANION_ORIGIN, companionLayers, type CompanionKind } from '../src/paint/companionGeometry.ts';
-import { G, SKY } from '../src/paint/primitives.ts';
+import { companionLayers } from '../src/paint/companionGeometry.ts';
 import { makeRamp, rampSteps } from '../src/theme/oklch.ts';
 import {
-  AvatarKit, avatarSpec, sampleFaces, sceneByKey, sceneSkies, specForIndex, tahanScenes,
-  type AvatarSpec, type SceneKey,
+  AvatarKit, avatarSpec, sampleCompanions, sampleFaces, sceneByKey, sceneSkies, specForIndex, tahanScenes,
+  type AvatarSpec, type CompanionSpec, type SceneKey,
 } from '../src/theme/palettes.ts';
 import { svgDocument } from './layersToSvg.ts';
 
@@ -25,15 +24,11 @@ function face(spec: AvatarSpec, size: number, scene: SceneKey): string {
   );
 }
 
-function companion(kind: CompanionKind, coat: number, size: number, scene: SceneKey): string {
-  const sky = sceneSkies[scene];
-  return svgDocument([
-    SKY(0, 0, COMPANION_BOX, COMPANION_BOX, sky.stops, sky.positions),
-    G(companionLayers(kind, {
-      coat: AvatarKit.coats[coat], top: AvatarKit.clothSwatches[coat],
-      skin: AvatarKit.skinRange[2], hair: AvatarKit.hairRange[1],
-    }), { transform: { x: COMPANION_ORIGIN.x, y: COMPANION_ORIGIN.y, scale: 1, ox: 0, oy: 0 } }),
-  ], COMPANION_BOX, size);
+function companion(spec: CompanionSpec, size: number, scene: SceneKey): string {
+  return svgDocument(
+    [...avatarBackdrop(sceneSkies[scene], sceneByKey(scene).accent2), ...companionLayers(spec, size <= 44)],
+    AVATAR_BOX, size,
+  );
 }
 
 const cell = (svg: string, label = '') => `<figure>${svg}${label ? `<figcaption>${label}</figcaption>` : ''}</figure>`;
@@ -58,8 +53,8 @@ parts.push(section('Glasses × facial hair', AvatarKit.glasses.flatMap((g, glass
 parts.push(section('Every extra', AvatarKit.extras.map((name, extra) =>
   cell(face(avatarSpec({ hair: 3, extra, extraColor: AvatarKit.extraSwatches[extra % 6] }), 96, 'blossom'), name)).join('')));
 
-parts.push(section('Companions — still the original style', (['dog', 'cat', 'baby'] as const).flatMap((kind) =>
-  [0, 2, 4].map((coat) => cell(companion(kind, coat, 96, 'blossom'), `${kind} · coat ${coat}`))).join('')));
+parts.push(section('Companions', sampleCompanions.map(({ name, ...spec }, i) =>
+  cell(companion(spec, 96, (['coast', 'night', 'blossom'] as const)[i % 3]), name)).join('')));
 
 parts.push(section('OKLCH ramps · accent then accent-2 · 100 → 900 · ▲ marks the token',
   `<div class="ramps">${tahanScenes.map((s) => `<div class="ramp-row"><span>${s.name}</span>${[s.accent, s.accent2].map((base) => {

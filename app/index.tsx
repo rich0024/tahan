@@ -13,9 +13,8 @@ import { router } from 'expo-router';
 
 import { Button, Card, Chip, Screen, T, Wrap } from '../src/components/themed.tsx';
 import { AvatarSize } from '../src/paint/avatarGeometry.ts';
-import type { CompanionKind } from '../src/paint/companionGeometry.ts';
 import { makeRamp, rampSteps } from '../src/theme/oklch.ts';
-import { AvatarKit, avatarSpec, sampleFaces, specForIndex, tahanScenes } from '../src/theme/palettes.ts';
+import { AvatarKit, avatarSpec, sampleCompanions, sampleFaces, specForIndex, tahanScenes } from '../src/theme/palettes.ts';
 import { useScene } from '../src/theme/SceneProvider.tsx';
 import { radius } from '../src/theme/tokens.ts';
 import { Avatar, CompanionAvatar } from '../src/widgets/Avatar.tsx';
@@ -128,23 +127,12 @@ export default function ReviewScreen() {
         </Section>
 
         <Section title="Companions">
-          <T variant="meta" color="inkMuted">Still in the original style — to be redrawn before the Me tab.</T>
           <Wrap gap={14}>
-            {(['dog', 'cat', 'baby'] as CompanionKind[]).flatMap((kind) =>
-              [0, 2, 4].map((coat) => (
-                <CompanionAvatar
-                  key={`${kind}${coat}`}
-                  kind={kind}
-                  colours={{
-                    coat: AvatarKit.coats[coat],
-                    top: AvatarKit.clothSwatches[coat],
-                    skin: AvatarKit.skinRange[2],
-                    hair: AvatarKit.hairRange[1],
-                  }}
-                  size={AvatarSize.me}
-                />
-              )),
-            )}
+            {sampleCompanions.map(({ name, ...spec }) => (
+              <Labelled key={name} label={name}>
+                <CompanionAvatar spec={spec} size={AvatarSize.me} name={name} />
+              </Labelled>
+            ))}
           </Wrap>
         </Section>
 

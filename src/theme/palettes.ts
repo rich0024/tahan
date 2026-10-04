@@ -142,8 +142,6 @@ export const AvatarKit = {
   frameSwatches: ['#1E1916', '#4A4038', '#7A2E3A', '#B0813F', '#C67139', '#C9C2B8'],
   extraSwatches: ['#D9A441', '#C9C2B8', '#C96B7A', '#3F6F8A', '#7A8A5E', '#F2ECE2'],
 
-  /** Companion coats — dog, cat. A companion belongs to the user, not a village. */
-  coats: ['#F2ECE2', '#D6B48A', '#A8764A', '#6B5647', '#3A3330'],
 } as const;
 
 /**
@@ -286,6 +284,107 @@ export const sampleFaces: readonly (AvatarSpec & { readonly name: string })[] = 
   { name: 'Dad', skin: 0.42, hair: 0, hairColor: '#B3ADA6', eyes: 0, eyeColor: '#5C3D27', mouth: 1, facial: 1, glasses: 2, glassesColor: '#4A4038', top: 3, topColor: '#8A6F5A', extra: 0, extraColor: '#D9A441' },
   { name: 'Ivy', skin: 0.05, hair: 10, hairColor: '#EED595', eyes: 0, eyeColor: '#3E6E8E', mouth: 0, facial: 0, glasses: 0, glassesColor: '#2A1E19', top: 2, topColor: '#9C5A4A', extra: 3, extraColor: '#F0B8C0' },
   { name: 'Sam', skin: 0.72, hair: 12, hairColor: '#3A2A20', eyes: 2, eyeColor: '#3A2A20', mouth: 0, facial: 0, glasses: 1, glassesColor: '#B0813F', top: 3, topColor: '#3F6F8A', extra: 1, extraColor: '#D9A441' },
+];
+
+/**
+ * The companion kit: a dog, a cat or a baby, drawn in the same detailed style
+ * as people. A companion belongs to its person, not to a village; you post as
+ * yourself and the update wears their face.
+ *
+ * Each kind has its own lists. `style` is ears for a dog, coat for a cat and
+ * hair for a baby; `mainColor` is fur for a pet and the onesie for a baby.
+ */
+export const CompanionKit = {
+  kinds: ['Dog', 'Cat', 'Baby'],
+  styles: [['Floppy ears', 'Pointy ears', 'Folded ears'], ['Short fur', 'Fluffy'], ['Tuft', 'Curls', 'Wisps', 'Bald']],
+  markings: [['None', 'Eye patch', 'Blaze', 'Spots'], ['None', 'Tabby', 'Patch', 'Tuxedo'], ['None']],
+  accessories: [['None', 'Collar', 'Bandana', 'Bow'], ['None', 'Collar', 'Bandana', 'Bow'], ['None', 'Bow', 'Beanie', 'Pacifier']],
+  /** Fur: white, cream, gold, ginger, brown, chocolate, grey, black. */
+  furRange: ['#F4EFE7', '#EBD9B8', '#D9A55C', '#B8692F', '#7A4E2E', '#4F3324', '#8E8A86', '#252220'],
+  eyeSwatches: ['#6B4A2E', '#3A2A20', '#C9822E', '#B9A23A', '#8DA34A', '#3E6E8E'],
+  markingSwatches: ['#F4EFE7', '#EBD9B8', '#D9A55C', '#B8692F', '#7A4E2E', '#8E8A86', '#252220'],
+  onesieSwatches: ['#F0B8C0', '#BCD8E0', '#F2ECE2', '#D9A55C', '#7A8A5E', '#C96B7A'],
+} as const;
+
+export const COMPANION_DOG = 0;
+export const COMPANION_CAT = 1;
+export const COMPANION_BABY = 2;
+
+/** A companion. This whole object is what goes into `/users/{uid}.companion`. */
+export interface CompanionSpec {
+  readonly kind: number; // 0 dog, 1 cat, 2 baby
+  readonly mainColor: string; // fur, or a baby's onesie
+  readonly skin: number; // baby: 0–1 along AvatarKit.skinRange
+  readonly hairColor: string; // baby
+  readonly style: number;
+  readonly markings: number;
+  readonly markingColor: string;
+  readonly eyeColor: string;
+  readonly accessory: number;
+  readonly accessoryColor: string;
+}
+
+export const defaultCompanion: CompanionSpec = {
+  kind: 0, mainColor: '#D9A55C', skin: 0.3, hairColor: '#3A2A20', style: 0, markings: 2,
+  markingColor: '#F4EFE7', eyeColor: '#6B4A2E', accessory: 1, accessoryColor: '#C67139',
+};
+
+/** Keep a companion's style indices valid for its kind. */
+export function fitCompanion(spec: CompanionSpec): CompanionSpec {
+  const k = ((Math.trunc(spec.kind) % 3) + 3) % 3;
+  const wrap = (v: number, n: number) => ((Math.trunc(v) % n) + n) % n;
+  return {
+    ...spec,
+    kind: k,
+    style: wrap(spec.style, CompanionKit.styles[k].length),
+    markings: wrap(spec.markings, CompanionKit.markings[k].length),
+    accessory: wrap(spec.accessory, CompanionKit.accessories[k].length),
+  };
+}
+
+/** Read a companion back from a Firestore document, repairing anything malformed. */
+export function companionFromMap(map: Record<string, unknown>): CompanionSpec {
+  const int = (key: 'kind' | 'style' | 'markings' | 'accessory') => {
+    const v = map[key];
+    return typeof v === 'number' && Number.isFinite(v) ? Math.trunc(v) : defaultCompanion[key];
+  };
+  const colour = (key: 'mainColor' | 'hairColor' | 'markingColor' | 'eyeColor' | 'accessoryColor') => {
+    const v = map[key];
+    return typeof v === 'string' && HEX.test(v) ? v.toUpperCase() : defaultCompanion[key];
+  };
+  const skin = typeof map.skin === 'number' && Number.isFinite(map.skin) ? Math.min(1, Math.max(0, map.skin)) : defaultCompanion.skin;
+  return fitCompanion({
+    kind: int('kind'), mainColor: colour('mainColor'), skin, hairColor: colour('hairColor'),
+    style: int('style'), markings: int('markings'), markingColor: colour('markingColor'),
+    eyeColor: colour('eyeColor'), accessory: int('accessory'), accessoryColor: colour('accessoryColor'),
+  });
+}
+
+/** Exactly the companion's fields, ready to write. */
+export function companionToMap(spec: CompanionSpec): Record<string, number | string> {
+  return {
+    kind: spec.kind, mainColor: spec.mainColor, skin: spec.skin, hairColor: spec.hairColor,
+    style: spec.style, markings: spec.markings, markingColor: spec.markingColor,
+    eyeColor: spec.eyeColor, accessory: spec.accessory, accessoryColor: spec.accessoryColor,
+  };
+}
+
+export function companionKey(spec: CompanionSpec): string {
+  return [spec.kind, spec.mainColor, spec.skin.toFixed(3), spec.hairColor, spec.style, spec.markings,
+    spec.markingColor, spec.eyeColor, spec.accessory, spec.accessoryColor].join('|');
+}
+
+/** Made-up companions, for the review screen and as fixtures. */
+export const sampleCompanions: readonly (CompanionSpec & { readonly name: string })[] = [
+  { name: 'Bandit', kind: 0, mainColor: '#D9A55C', skin: 0.3, hairColor: '#3A2A20', style: 0, markings: 2, markingColor: '#F4EFE7', eyeColor: '#6B4A2E', accessory: 1, accessoryColor: '#C67139' },
+  { name: 'Kuya', kind: 0, mainColor: '#4F3324', skin: 0.3, hairColor: '#3A2A20', style: 1, markings: 0, markingColor: '#D9A55C', eyeColor: '#6B4A2E', accessory: 2, accessoryColor: '#3F6F8A' },
+  { name: 'Pepper', kind: 0, mainColor: '#F4EFE7', skin: 0.3, hairColor: '#3A2A20', style: 2, markings: 1, markingColor: '#4F3324', eyeColor: '#3A2A20', accessory: 3, accessoryColor: '#C96B7A' },
+  { name: 'Miso', kind: 1, mainColor: '#B8692F', skin: 0.3, hairColor: '#3A2A20', style: 0, markings: 1, markingColor: '#7A4E2E', eyeColor: '#B9A23A', accessory: 1, accessoryColor: '#3F6F8A' },
+  { name: 'Luna', kind: 1, mainColor: '#252220', skin: 0.3, hairColor: '#3A2A20', style: 1, markings: 3, markingColor: '#F4EFE7', eyeColor: '#8DA34A', accessory: 3, accessoryColor: '#C96B7A' },
+  { name: 'Tofu', kind: 1, mainColor: '#F4EFE7', skin: 0.3, hairColor: '#3A2A20', style: 0, markings: 2, markingColor: '#8E8A86', eyeColor: '#3E6E8E', accessory: 0, accessoryColor: '#C67139' },
+  { name: 'Baby Ana', kind: 2, mainColor: '#F0B8C0', skin: 0.45, hairColor: '#3A2A20', style: 0, markings: 0, markingColor: '#F4EFE7', eyeColor: '#3A2A20', accessory: 1, accessoryColor: '#C96B7A' },
+  { name: 'Baby Leo', kind: 2, mainColor: '#BCD8E0', skin: 0.15, hairColor: '#D9AB60', style: 1, markings: 0, markingColor: '#F4EFE7', eyeColor: '#3A2A20', accessory: 3, accessoryColor: '#7A8A5E' },
+  { name: 'Baby Kai', kind: 2, mainColor: '#D9A55C', skin: 0.8, hairColor: '#1E1916', style: 2, markings: 0, markingColor: '#F4EFE7', eyeColor: '#3A2A20', accessory: 2, accessoryColor: '#5D8A6B' },
 ];
 
 /**
