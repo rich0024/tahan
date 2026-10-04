@@ -47,6 +47,27 @@ export function Room({ scene, width, height, ambient = true, dayPart = 'auto', v
   const particles = useMemo(() => driftParticles(scene, drift, ambient && !reduced), [scene, drift, ambient, reduced]);
   const wash = washes[part];
 
+  // The drift's one clock. Kept out here, not inside the Canvas: Skia draws
+  // its children with its own renderer, which can't see navigation or app
+  // state, so whether the room is in front and the app awake is decided here.
+  const clock = useSharedValue(0);
+  const appActive = useAppActive();
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(useCallback(() => {
+    setFocused(true);
+    return () => setFocused(false);
+  }, []));
+
+  const frame = useFrameCallback((info) => {
+    const step = Math.min(info.timeSincePreviousFrame ?? 0, MAX_STEP_MS);
+    clock.value += step / 1000;
+  }, false);
+
+  const running = particles.length > 0 && appActive && focused;
+  useEffect(() => {
+    frame.setActive(running);
+  }, [frame, running]);
+
   return (
     <View style={[{ width, height }, style]} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <SceneBackdrop scene={scene} width={width} height={height} version={version} />
@@ -54,7 +75,7 @@ export function Room({ scene, width, height, ambient = true, dayPart = 'auto', v
         <Rect x={0} y={0} width={width} height={height}>
           <LinearGradient start={vec(0, 0)} end={vec(0, height)} colors={[...wash.colors]} positions={[...wash.positions]} />
         </Rect>
-        {particles.length > 0 && <Drift particles={particles} width={width} height={height} />}
+        {particles.map((p, i) => <Mote key={i} p={p} clock={clock} width={width} height={height} />)}
       </Canvas>
     </View>
   );
@@ -62,34 +83,7 @@ export function Room({ scene, width, height, ambient = true, dayPart = 'auto', v
 
 // ---------------------------------------------------------------------------
 
-function Drift({ particles, width, height }: { particles: Particle[]; width: number; height: number }) {
-  const clock = useSharedValue(0);
-  const appActive = useAppActive();
-  const [focused, setFocused] = useState(true);
-
-  useFocusEffect(useCallback(() => {
-    setFocused(true);
-    return () => setFocused(false);
-  }, []));
-
-  // One controller for every particle.
-  const frame = useFrameCallback((info) => {
-    const step = Math.min(info.timeSincePreviousFrame ?? 0, MAX_STEP_MS);
-    clock.value += step / 1000;
-  }, false);
-
-  const running = appActive && focused;
-  useEffect(() => {
-    frame.setActive(running);
-  }, [frame, running]);
-
-  return (
-    <>
-      {particles.map((p, i) => <Mote key={i} p={p} clock={clock} width={width} height={height} />)}
-    </>
-  );
-}
-
+/** One particle. Drawn inside the Canvas, so it uses no React context. */
 function Mote({ p, clock, width, height }: { p: Particle; clock: SharedValue<number>; width: number; height: number }) {
   const transform = useDerivedValue(() => {
     const f = particleAt(p, clock.value, width, height);
