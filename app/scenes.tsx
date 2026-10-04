@@ -12,7 +12,7 @@ import { BackButton } from '../src/components/BackButton.tsx';
 import { Button, Chip, Screen, T } from '../src/components/themed.tsx';
 import { SCENE_H, SCENE_W } from '../src/paint/scenes/index.ts';
 import { tahanScenes } from '../src/theme/palettes.ts';
-import { SceneBackdrop } from '../src/widgets/SceneBackdrop.tsx';
+import { Room } from '../src/widgets/Room.tsx';
 
 export default function Scenes() {
   const { width } = useWindowDimensions();
@@ -28,8 +28,8 @@ export default function Scenes() {
           <BackButton onPress={() => router.back()} />
           <T variant="screenTitle" accessibilityRole="header">The nine scenes</T>
           <T color="inkMuted">
-            Each at header height ({header}pt on this phone) — scaled on width, never stretched. Open one
-            full screen to see the ground carry on below it.
+            Each at header height ({header}pt on this phone), with the wash for the time of day. Open one
+            full screen to see its weather drift, and to try other times of day.
           </T>
           <View style={{ flexDirection: 'row', gap: 8 }} accessibilityRole="radiogroup" accessibilityLabel="Version">
             <Chip label="Painted" selected={version === 'painted'} onPress={() => setVersion('painted')} />
@@ -38,7 +38,7 @@ export default function Scenes() {
         </View>
         {tahanScenes.map((s) => (
           <View key={s.key} style={{ gap: 8 }}>
-            <SceneBackdrop scene={s.key} width={width} height={header} version={version} />
+            <Room scene={s.key} width={width} height={header} version={version} ambient={false} />
             <View style={{ paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
               <T variant="sectionHeading">{s.name}</T>
               <Button

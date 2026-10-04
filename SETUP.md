@@ -16,6 +16,8 @@ is on the `flutter` branch, untouched.
 | T1.8 Avatar editor | written; your face and your companion's, runs in Expo Go |
 | T2.1 Scene data | transcribed from the prototype by `npm run scenes`; tested layer by layer |
 | T2.2 ◆ ScenePainter | written; scenes are now **paintings** (Higgsfield, FLUX 3), the drawn ones the fallback — Fork → *The nine scenes* |
+| T2.3 Time-of-day wash | written; recomputed on resume — full-screen scene view lets you force each part of the day |
+| T2.4 ◆ Ambient drift | written; **owner review** — open any scene full screen |
 
 ## Avatars: the detailed kit
 
@@ -47,7 +49,7 @@ colour, so any colour shades correctly.
 - **Type-checked against the real libraries.** `npm run typecheck` passes with
   TypeScript 6 against the actual React Native 0.86, Expo SDK 57, Skia and
   Reanimated 4 types — app code, tests, tools and config.
-- **146 tests pass** (`npm test`):
+- **153 tests pass** (`npm test`):
   - **Avatars.** Every path of every option parses; no hairstyle or extra
     leaves the frame; shadows are darker and highlights lighter than their base
     at the same hue; small faces drop their detail; a spec read back from the
@@ -74,6 +76,11 @@ colour, so any colour shades correctly.
     and floor; the seven `T` curves became exactly the `Q`s below; painted
     into any rect a scene scales on width only, crops at header height, and
     its ground colour carries it to the bottom of a tall screen.
+  - **The room.** Four parts of the day (the small hours are night — the
+    prototype called 2am morning); each wash is low-alpha and distinct. Drift:
+    each scene's effect and count, zero particles when motion is off, the
+    same pattern on every build (a hash of index and scene key), and every
+    particle loops and stays in the room.
   - **Parser.** Accepts absolute `M L Q C Z` with implicit repetition; throws on
     every relative command, both arc forms, `H V S T`, and malformed input.
   - **Palettes and skies** re-read `design/tahan_palettes.dart` and the prototype
@@ -297,10 +304,12 @@ would move the accent. So every step rides one shared normalised curve and 500
 is the token exactly (tested for all nine scenes). The curve is nine numbers at
 the top of `src/theme/oklch.ts` if you'd rather have it the other way.
 
-### 5. Drift particle counts disagree
+### 5. Drift particle counts disagree — settled in T2.4
 
-Not needed until T2.4: the README says 18–26 shapes; the prototype uses 6 for
-breeze, 14 for fireflies, and 16 or 26 otherwise.
+The README says 18–26 shapes; the prototype uses 6 for breeze, 14 for
+fireflies, and 26 otherwise in the window backdrop. T2.4 follows the
+prototype: 18 fireflies or 18 breeze streaks read as busy. One line in
+`src/paint/drift.ts` (`particleCount`) if you'd rather the brief's range.
 
 ---
 
