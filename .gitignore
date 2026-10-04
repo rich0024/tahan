@@ -22,3 +22,9 @@ google-services.json
 *.orig.*
 .DS_Store
 avatar-sheet.html
+
+# Firebase emulator logs (npm run test:rules)
+firestore-debug.log
+storage-debug.log
+firebase-debug.log
+ui-debug.log

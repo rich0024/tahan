@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import {
   assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, setDoc, type Firestore } from 'firebase/firestore';
+import { doc, setDoc, setLogLevel, type Firestore } from 'firebase/firestore';
 import { deleteObject, getBytes, ref, uploadBytes, type FirebaseStorage } from 'firebase/storage';
 
 let env: RulesTestEnvironment;
@@ -17,6 +17,8 @@ const store = (uid: string | null) =>
 const photo = (author: string) => ({ contentType: 'image/jpeg', customMetadata: { authorId: author } });
 
 before(async () => {
+  // Every refused write is a test passing; the SDK would log each one as an error.
+  setLogLevel('silent');
   env = await initializeTestEnvironment({
     projectId: 'demo-tahan',
     firestore: { rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8') },

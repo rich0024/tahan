@@ -46,8 +46,10 @@
     "react-native-worklets": "0.10.1"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@types/node": "^26.6.4",
     "@types/react": "~19.2.4",
+    "firebase-tools": "^15.32.1",
     "typescript": "~6.0.3"
   }
 }

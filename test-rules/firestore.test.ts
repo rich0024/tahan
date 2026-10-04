@@ -15,6 +15,7 @@ import {
 import {
   collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc, writeBatch,
   type Firestore,
+  setLogLevel,
 } from 'firebase/firestore';
 
 let env: RulesTestEnvironment;
@@ -28,6 +29,8 @@ const zero = { heart: 0, hands: 0, smile: 0, star: 0 };
 const face = { skin: 0.4, hair: 1 };
 
 before(async () => {
+  // Every refused write is a test passing; the SDK would log each one as an error.
+  setLogLevel('silent');
   env = await initializeTestEnvironment({
     projectId: 'demo-tahan',
     firestore: { rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8') },

@@ -20,7 +20,7 @@ is on the `flutter` branch, untouched.
 | T2.4 ◆ Ambient drift | written; reviewed by the owner |
 | T2.5 Glass and parallax | written — Fork → *The window*; the sill was removed at the owner's request; check 60fps in a release build |
 | T2.6 Scene switching retints the app | written — the scene chips on *The window* |
-| T3.1 ◆ Firestore, rules and rule tests | written; **you** run `npm run test:rules` (below), then **owner review** |
+| T3.1 ◆ Firestore, rules and rule tests | rules suite passes 29/29 on the emulators; **owner review** |
 
 ## Avatars: the detailed kit
 
