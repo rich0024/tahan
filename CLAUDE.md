@@ -61,9 +61,10 @@ TypeScript** in `src/theme/` and `src/paint/`, using erasable syntax only (no
 `enum`, no `namespace`, no constructor parameter properties) and importing each
 other with explicit `.ts` extensions. That is what lets `npm test` run them with
 plain Node — no simulator, no Jest, no native code. Only `src/paint/skiaPaint.ts`,
-`src/auth/firebaseBackend.ts`, `src/auth/SessionProvider.tsx` and the
-components touch native modules. Sign-in logic (`src/auth/phone.ts`,
-`previewBackend.ts`) and the user document (`src/data/user.ts`) are pure. Keep it that way: when a ticket adds
+`src/auth/firebaseBackend.ts`, `src/auth/SessionProvider.tsx`,
+`src/village/VillageProvider.tsx` and the components touch native modules.
+Sign-in logic (`src/auth/phone.ts`, `previewBackend.ts`), the user document
+(`src/data/user.ts`) and villages (`src/data/village.ts`) are pure. Keep it that way: when a ticket adds
 logic, put the logic in a pure module and test it there.
 
 ## Style

@@ -13,7 +13,7 @@ import {
   assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
-  collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc, writeBatch,
+  arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc, writeBatch,
   type Firestore,
   setLogLevel,
 } from 'firebase/firestore';
@@ -55,6 +55,8 @@ beforeEach(async () => {
     await setDoc(doc(db, `villages/${V}/moderation/m1`), { actorUid: 'alice', authorUid: 'bob', postType: 'update', reason: 'Duplicate', at: new Date() });
     await setDoc(doc(db, `invites/tok123`), { villageId: V, createdBy: 'alice', expiresAt: new Date(Date.now() + 86_400_000), usedAt: null });
     await setDoc(doc(db, `users/alice`), { displayName: 'Alice', avatar: face, companion: null, villages: [V], textScale: 1, createdAt: new Date() });
+    await setDoc(doc(db, `users/bob`), { displayName: 'Bob', avatar: face, companion: null, villages: [V], textScale: 1, createdAt: new Date() });
+    await setDoc(doc(db, `users/mallory`), { displayName: 'Mallory', avatar: face, companion: null, villages: [], textScale: 1, createdAt: new Date() });
     await setDoc(doc(db, `users/alice/recipes/adobo`), { title: 'Adobo', sharedWith: [V] });
     await setDoc(doc(db, `villages/${V}/events/e1`), { title: 'Sunday', startsAt: new Date(), where: 'Ours', hostId: 'alice', postId: 'alicePost' });
     await setDoc(doc(db, `villages/${V}/events/e1/bring/pot`), { group: 'eat', title: 'Big pot of rice', askedBy: 'alice', claimedBy: null, note: '' });
@@ -104,12 +106,38 @@ describe('villages', () => {
     await assertFails(deleteDoc(doc(as('alice'), `villages/${V}`)));
   });
 
-  test('starting a village: the village and your own admin membership, together', async () => {
+  test('starting a village: the village, your own admin membership and your list of villages, together', async () => {
     const db = as('mallory');
     const batch = writeBatch(db);
     batch.set(doc(db, 'villages/v2'), { name: 'Mallory\'s', sceneKey: 'forest', createdBy: 'mallory', memberCount: 1, createdAt: serverTimestamp() });
     batch.set(doc(db, 'villages/v2/members/mallory'), { role: 'admin', displayName: 'Mallory', avatar: face, joinedAt: serverTimestamp(), lastSeenAt: serverTimestamp() });
+    batch.update(doc(db, 'users/mallory'), { villages: arrayUnion('v2') });
     await assertSucceeds(batch.commit());
+    await assertSucceeds(getDoc(doc(db, 'villages/v2')));
+  });
+
+  test('…and a second one goes on the end of the list', async () => {
+    const db = as('alice');
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'villages/v2'), { name: 'Book club', sceneKey: 'coast', createdBy: 'alice', memberCount: 1, createdAt: serverTimestamp() });
+    batch.set(doc(db, 'villages/v2/members/alice'), { role: 'admin', displayName: 'Alice', avatar: face, joinedAt: serverTimestamp(), lastSeenAt: serverTimestamp() });
+    batch.update(doc(db, 'users/alice'), { villages: arrayUnion('v2') });
+    await assertSucceeds(batch.commit());
+  });
+
+  test('the list only gains the village being started — never one you were not given', async () => {
+    // A village you're a member of, but didn't just start: that's redeemInvite()'s to add.
+    await assertFails(updateDoc(doc(as('bob'), 'users/bob'), { villages: [V, V] }));
+    await assertFails(updateDoc(doc(as('mallory'), 'users/mallory'), { villages: [V] }));
+    // Starting one village doesn't let you slip in another.
+    const db = as('mallory');
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'villages/v2'), { name: 'Mallory\'s', sceneKey: 'forest', createdBy: 'mallory', memberCount: 1, createdAt: serverTimestamp() });
+    batch.set(doc(db, 'villages/v2/members/mallory'), { role: 'admin', displayName: 'Mallory', avatar: face, joinedAt: serverTimestamp(), lastSeenAt: serverTimestamp() });
+    batch.update(doc(db, 'users/mallory'), { villages: [V, 'v2'] });
+    await assertFails(batch.commit());
+    // Nor drop one: leaving is leaveVillage()'s.
+    await assertFails(updateDoc(doc(as('alice'), 'users/alice'), { villages: [] }));
   });
 
   test('…but not a village without its founder, nor a village founded in someone else\'s name', async () => {

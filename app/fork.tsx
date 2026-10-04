@@ -2,8 +2,9 @@
 // a village, or wait for one. No browse, no suggestions, no "find friends" —
 // with nobody to invite, the honest answer is to ask for a link.
 //
-// Starting a village is T3.2. Until then this is where everyone lands, so it
-// also keeps the way out (sign out) and the milestone-1 review.
+// Starting one opens app/new-village.tsx. Someone already in a village never
+// lands here — the app opens on their village — so the review screens and
+// sign-out are kept here and on the village screen alike.
 
 import { ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
@@ -54,8 +55,7 @@ function Fork() {
             For your family, or your closest friends. You'll name it, choose its scene, and invite
             them with a link.
           </T>
-          <Button label="Start a village" disabled />
-          <T variant="meta" color="inkMuted">Arrives in the next milestone.</T>
+          <Button label="Start a village" onPress={() => router.push('/new-village')} />
         </Card>
 
         <Card style={{ gap: 10 }}>

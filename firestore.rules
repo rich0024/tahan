@@ -77,8 +77,9 @@ service cloud.firestore {
     // ------------------------------------------------------------- people
 
     // Your own document: read and write only yours. `villages` is written
-    // by functions alone — it's never the source of membership, but a
-    // person must not be able to add a village to it themselves.
+    // by functions — it's never the source of membership, but a person must
+    // not be able to add a village to it themselves. The one exception is
+    // the village you are starting, in the same write that starts it.
     match /users/{uid} {
       allow read, delete: if signedIn() && me() == uid;
       allow create: if signedIn() && me() == uid
@@ -86,14 +87,28 @@ service cloud.firestore {
         && incoming().villages == []
         && incoming().createdAt == request.time;
       allow update: if signedIn() && me() == uid
-        && !changed().hasAny(['villages', 'createdAt'])
-        && incoming().keys().hasOnly(['displayName', 'avatar', 'companion', 'villages', 'textScale', 'createdAt']);
+        && !changed().hasAny(['createdAt'])
+        && incoming().keys().hasOnly(['displayName', 'avatar', 'companion', 'villages', 'textScale', 'createdAt'])
+        && (!changed().hasAny(['villages']) || foundingOne(resource.data.villages, incoming().villages));
 
       // Recipes belong to the person and are lent to villages.
       match /recipes/{recipeId} {
         allow read: if signedIn() && (me() == uid || sharedWithMe(resource.data.sharedWith));
         allow create, update, delete: if signedIn() && me() == uid;
       }
+    }
+
+    // The list gains exactly one village, at the end, and it's one this
+    // same write is creating with you as its founder.
+    function foundingOne(was, now) {
+      return now is list && now.size() == was.size() + 1
+        && now[0:was.size()] == was
+        && founding(now[now.size() - 1]);
+    }
+
+    function founding(vid) {
+      return !exists(villagePath(vid))
+        && getAfter(villagePath(vid)).data.createdBy == me();
     }
 
     // A recipe shared into a village you're a member of. Recipes are shared

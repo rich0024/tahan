@@ -7,6 +7,7 @@
 // are talking to.
 
 import type { UserStore } from '../data/user.ts';
+import type { VillageStore } from '../data/village.ts';
 
 /** A code has been sent to a number and is waiting to be typed in. */
 export interface PendingCode {
@@ -26,6 +27,7 @@ export interface AuthBackend {
   sendCode(phone: string): Promise<PendingCode>;
   signOut(): Promise<void>;
   readonly users: UserStore;
+  readonly villages: VillageStore;
 }
 
 /** An error carrying a Firebase-style code, so signInError() can word it. */

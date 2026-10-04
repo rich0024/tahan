@@ -10,6 +10,8 @@
 //   HeaderFade      the bottom of the header softening into the room.
 //   Veil            the scene's background behind the feed, nearly opaque.
 //   Glass           the sheen and vignette, over everything, touch-through.
+//   NamePill        the village's name on the scene: nothing else is in front
+//                   of it.
 //
 // Colours that belong to the scene take the retint (useSceneColor); the
 // glass is the same in every scene.
@@ -24,9 +26,10 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import {
-  BACKDROP_SCALE, HEADER_FADE, SHEEN_ANGLE, alphaColor, gradientLine, parallaxOffset, sheen, veil, vignette,
+  BACKDROP_SCALE, HEADER_FADE, NAME_PILL_ALPHA, SHEEN_ANGLE, alphaColor, gradientLine, parallaxOffset, sheen, veil, vignette,
 } from '../paint/window.ts';
-import type { SceneKey } from '../theme/palettes.ts';
+import { T } from '../components/themed.tsx';
+import { tahanInk, type SceneKey } from '../theme/palettes.ts';
 import { useScene, useSceneColor } from '../theme/SceneProvider.tsx';
 import { retint } from '../theme/tokens.ts';
 import { Room } from './Room.tsx';
@@ -115,6 +118,23 @@ export function Glass({ width, height }: { width: number; height: number }) {
           <BoxShadow dx={0} dy={0} blur={0} spread={1} color={vignette.hairline} inner />
         </Box>
       </Canvas>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+const pill = alphaColor(tahanInk, NAME_PILL_ALPHA);
+
+/** The village's name on its scene, in a soft dark pill, with the line under it. */
+export function NamePill({ name, line }: { name: string; line: string }) {
+  const { colors } = useScene();
+  return (
+    <View style={{ alignSelf: 'flex-start', maxWidth: '100%', paddingHorizontal: 16, paddingVertical: 9, borderRadius: 22, backgroundColor: pill }}>
+      <T variant="screenTitleSmall" style={{ fontSize: 25, lineHeight: 30, color: colors.bg }} accessibilityRole="header">
+        {name}
+      </T>
+      <T variant="metaSmall" style={{ color: colors.bg, opacity: 0.85 }}>{line}</T>
     </View>
   );
 }

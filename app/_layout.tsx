@@ -1,4 +1,4 @@
-// Root layout: fonts, the session, the splash hold, the scene.
+// Root layout: fonts, the session, the splash hold, the scene, the village.
 //
 // The splash stays up until Caprasimo and Figtree are loaded and the session
 // knows whether someone is signed in, so first paint is never in a fallback
@@ -19,6 +19,7 @@ import { warmAvatarPaths } from '../src/paint/avatarGeometry.ts';
 import { warmCompanionPaths } from '../src/paint/companionGeometry.ts';
 import { SceneProvider } from '../src/theme/SceneProvider.tsx';
 import { fonts } from '../src/theme/tokens.ts';
+import { VillageProvider } from '../src/village/VillageProvider.tsx';
 
 // Parse every authored path at launch. A bad path throws here, on the first
 // run, not on whichever frame first draws it.
@@ -58,10 +59,13 @@ function Root() {
   return (
     <SafeAreaProvider>
       <SceneProvider>
-        {/* Every scene's background is light, so the status bar is always dark. */}
-        <StatusBar style="dark" />
-        {/* No native header: the brief has the app draw its own chrome. */}
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }} />
+        {/* The current village's scene themes everything below it. */}
+        <VillageProvider>
+          {/* Every scene's background is light, so the status bar is always dark. */}
+          <StatusBar style="dark" />
+          {/* No native header: the brief has the app draw its own chrome. */}
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }} />
+        </VillageProvider>
       </SceneProvider>
     </SafeAreaProvider>
   );

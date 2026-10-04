@@ -25,6 +25,12 @@ describe('where the app opens', () => {
     assert.equal(startRoute(named(), null), '/fork', 'then the fork');
   });
 
+  test('someone in a village opens on it; an invitation still comes first', () => {
+    const villager = { ...named(), villages: ['v1'] };
+    assert.equal(startRoute(villager, null), '/village');
+    assert.equal(startRoute(villager, 'abc123'), '/invite/abc123');
+  });
+
   test('an invitation link skips the welcome, and comes back after the face', () => {
     assert.equal(startRoute(null, 'abc123'), '/phone');
     assert.equal(startRoute(fresh(), 'abc123'), '/face');

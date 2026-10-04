@@ -14,8 +14,9 @@ import { artFloor, artPlacement } from '../paint/sceneArt.ts';
 import { withAlpha } from '../theme/oklch.ts';
 import type { SceneKey } from '../theme/palettes.ts';
 
+/** The nine paintings, as bundled assets. The scene picker shows them as round doors. */
 /* eslint-disable @typescript-eslint/no-require-imports */
-const ART: Readonly<Record<SceneKey, number>> = {
+export const sceneArtAsset: Readonly<Record<SceneKey, number>> = {
   night: require('../../assets/scenes/night.webp'),
   forest: require('../../assets/scenes/forest.webp'),
   tropical: require('../../assets/scenes/tropical.webp'),
@@ -34,7 +35,7 @@ export function SceneBackdrop({ scene, width, height, style }: {
   height: number;
   style?: StyleProp<ViewStyle>;
 }) {
-  const image = useImage(ART[scene]);
+  const image = useImage(sceneArtAsset[scene]);
   const art = artPlacement(width);
   const floor = artFloor[scene];
 

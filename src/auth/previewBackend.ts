@@ -13,6 +13,9 @@
 import type { AuthBackend, PendingCode } from './backend.ts';
 import { authError } from './backend.ts';
 import { hashString, type UserFields, type UserStore } from '../data/user.ts';
+import {
+  founderMemberFields, newVillageFields, previewVillageId, villageFromDoc, type Village, type VillageStore,
+} from '../data/village.ts';
 
 export const PREVIEW_CODE = '123456';
 
@@ -24,6 +27,8 @@ export interface KeyValue {
 
 const SESSION = 'tahan.preview.session';
 const userKey = (uid: string) => `tahan.preview.user.${uid}`;
+const villageKey = (vid: string) => `tahan.preview.village.${vid}`;
+const memberKey = (vid: string, uid: string) => `tahan.preview.member.${vid}.${uid}`;
 
 /** The same number is always the same person. */
 export const previewUid = (phone: string): string => `preview-${hashString(phone).toString(36)}`;
@@ -57,6 +62,33 @@ export function previewBackend(kv: KeyValue, now: () => number = Date.now): Auth
     },
   };
 
+  // Villages live on this phone only: nobody else can join a preview
+  // village, since invitations need the server (T3.3). Nothing changes a
+  // village yet, so watching one is a single read.
+  const readVillage = async (vid: string): Promise<Village | null> => {
+    const raw = await kv.getItem(villageKey(vid));
+    return raw ? villageFromDoc(vid, JSON.parse(raw) as Record<string, unknown>) : null;
+  };
+
+  const villages: VillageStore = {
+    async start(founder, name, sceneKey) {
+      const at = now();
+      const vid = previewVillageId(founder.uid, at);
+      const fields = newVillageFields(founder.uid, name, sceneKey);
+      await kv.setItem(villageKey(vid), JSON.stringify({ ...fields, createdAt: at }));
+      await kv.setItem(memberKey(vid, founder.uid), JSON.stringify({ ...founderMemberFields(founder), joinedAt: at, lastSeenAt: at }));
+      const stored = await users.get(founder.uid);
+      const list = Array.isArray(stored?.villages) ? stored.villages as string[] : [];
+      await users.update(founder.uid, { villages: [...list, vid] });
+      return vid;
+    },
+    watch(vid, listener) {
+      let live = true;
+      readVillage(vid).then((v) => { if (live) listener(v); }, () => { if (live) listener(null); });
+      return () => { live = false; };
+    },
+  };
+
   return {
     kind: 'preview',
     subscribe(listener) {
@@ -79,6 +111,7 @@ export function previewBackend(kv: KeyValue, now: () => number = Date.now): Auth
     },
     signOut: () => set(null),
     users,
+    villages,
   };
 }
 

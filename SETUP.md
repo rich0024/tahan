@@ -20,7 +20,8 @@ is on the `flutter` branch, untouched.
 | T2.4 ◆ Ambient drift | written; reviewed by the owner |
 | T2.5 Glass and parallax | written — Fork → *The window*; the sill was removed at the owner's request; check 60fps in a release build |
 | T2.6 Scene switching retints the app | written — the scene chips on *The window* |
-| T3.1 ◆ Firestore, rules and rule tests | rules suite passes 29/29 on the emulators; **owner review** |
+| T3.1 ◆ Firestore, rules and rule tests | rules suite passed 29/29 on the emulators; reviewed by the owner |
+| T3.2 Create a village | written — Fork → *Start a village*; runs in Expo Go (preview villages stay on the phone); **you** re-run `npm run test:rules` (now 31) |
 
 ## Avatars: the detailed kit
 
@@ -52,7 +53,7 @@ colour, so any colour shades correctly.
 - **Type-checked against the real libraries.** `npm run typecheck` passes with
   TypeScript 6 against the actual React Native 0.86, Expo SDK 57, Skia and
   Reanimated 4 types — app code, tests, tools and config.
-- **145 tests pass** (`npm test`), plus the rules suite (`npm run test:rules`, below):
+- **156 tests pass** (`npm test`), plus the rules suite (`npm run test:rules`, below):
   - **Avatars.** Every path of every option parses; no hairstyle or extra
     leaves the frame; shadows are darker and highlights lighter than their base
     at the same hue; small faces drop their detail; a spec read back from the
@@ -86,6 +87,11 @@ colour, so any colour shades correctly.
     zero (a pull-down can't lift the sky off the top) and never past the
     extra its 6% scale gives it; the sheen stays faint; colours keep their
     scene through a mid-retint alpha.
+  - **Villages.** Starting one writes the village (name trimmed, at most 60
+    characters, one of the nine scenes), the founder's admin membership with
+    a copy of their name and face, and the village at the end of their list;
+    the app opens on the village last chosen on this phone, else the newest;
+    a malformed village document is repaired rather than failing to open.
   - **Parser.** Accepts absolute `M L Q C Z` with implicit repetition; throws on
     every relative command, both arc forms, `H V S T`, and malformed input.
   - **Palettes and skies** re-read `design/tahan_palettes.dart` and the prototype
@@ -267,8 +273,10 @@ Where the rules are stricter than `backend.md`, on purpose:
 - **RSVPs and "I'm in" are a document per person** (`events/{id}/rsvps/{uid}`,
   `ideas/{id}/imIn/{uid}`), not the `comingUids` / `inUids` arrays in the
   brief — CLAUDE.md's rule: arrays lose answers given offline.
-- **You can't edit the `villages` list on your own user document.** Only
-  functions write it; otherwise anyone could add a village to it.
+- **You can't edit the `villages` list on your own user document** —
+  otherwise anyone could add a village to it. Functions write it; the one
+  exception is the village you're starting, added to the end in the same
+  write that creates it (T3.2), so a new village works offline.
 - **The founder is always an admin.** An admin can step other admins down,
   never the person who started the village, so a village always has one.
 - **Counts move by one at a time.** Any member may change a post's reaction

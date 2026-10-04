@@ -5,6 +5,7 @@
 // made, comes back to the invitation. Arriving with no invitation ends on the
 // fork: start a village, or wait for someone to send a link. No tour, no
 // browse, no "find friends", and no permission is asked for along the way.
+// Once someone is in a village, the app opens on it.
 
 import { hashString, firstFace, type TahanUser } from '../data/user.ts';
 import { specForIndex, type AvatarSpec } from '../theme/palettes.ts';
@@ -20,9 +21,9 @@ export function startRoute(user: TahanUser | null, invite: string | null): strin
   if (!user) return invite ? '/phone' : '/welcome';
   if (!isOnboarded(user)) return '/face';
   if (invite) return `/invite/${invite}`;
-  // Milestone 3 adds villages and milestone 4 the feed: someone with a
-  // village will go there. Until then, everyone lands on the fork.
-  return '/fork';
+  // Someone in a village opens on it (the feed, from milestone 4); someone
+  // in none is at the fork: start one, or wait for a link.
+  return user.villages.length ? '/village' : '/fork';
 }
 
 export const MAX_NAME = 40;

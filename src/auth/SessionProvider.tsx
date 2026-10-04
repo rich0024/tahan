@@ -18,9 +18,12 @@ import { Redirect } from 'expo-router';
 import type { AuthBackend, PendingCode } from './backend.ts';
 import { memoryKeyValue, previewBackend, type KeyValue } from './previewBackend.ts';
 import { changesToFields, ensureUser, type TahanUser, type UserChanges } from '../data/user.ts';
+import type { VillageStore } from '../data/village.ts';
+import type { SceneKey } from '../theme/palettes.ts';
 import { startRoute } from './onboarding.ts';
 
-function deviceKeyValue(): KeyValue {
+/** The phone's own key-value store (expo-sqlite), or memory if it won't load. */
+export function deviceKeyValue(): KeyValue {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { default: Storage } = require('expo-sqlite/kv-store') as typeof import('expo-sqlite/kv-store');
@@ -75,6 +78,14 @@ interface SessionContextValue {
    * when there's signal.
    */
   updateUser(changes: UserChanges): void;
+  /**
+   * Starts a village with the signed-in person as its founder and admin.
+   * Resolves with its id once the phone has it; the person's list of
+   * villages gains it at the same moment.
+   */
+  startVillage(name: string, sceneKey: SceneKey): Promise<string>;
+  /** Reading villages. */
+  readonly villageStore: VillageStore;
   /** Where the app should be, given who's signed in and any invitation. */
   readonly start: string | null;
 }
@@ -132,14 +143,26 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     });
   }, [backend]);
 
+  const startVillage = useCallback(async (name: string, sceneKey: SceneKey) => {
+    const current = sessionNow.current;
+    if (current.status !== 'signedIn') throw new Error('Starting a village while signed out');
+    const vid = await backend.villages.start(current.user, name, sceneKey);
+    const latest = sessionNow.current;
+    if (latest.status === 'signedIn' && latest.user.uid === current.user.uid && !latest.user.villages.includes(vid)) {
+      setSession({ status: 'signedIn', user: { ...latest.user, villages: [...latest.user.villages, vid] } });
+    }
+    return vid;
+  }, [backend]);
+
   const start = session.status === 'signedIn' ? startRoute(session.user, invite)
     : session.status === 'signedOut' ? startRoute(null, invite)
     : null;
 
   const value = useMemo<SessionContextValue>(() => ({
     session, backend: backend.kind, pending, sendCode, confirmCode,
-    clearPending: () => setPending(null), signOut, invite, setInvite, updateUser, start,
-  }), [session, backend, pending, sendCode, confirmCode, signOut, invite, updateUser, start]);
+    clearPending: () => setPending(null), signOut, invite, setInvite, updateUser, startVillage,
+    villageStore: backend.villages, start,
+  }), [session, backend, pending, sendCode, confirmCode, signOut, invite, updateUser, startVillage, start]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

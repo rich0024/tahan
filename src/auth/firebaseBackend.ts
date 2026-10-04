@@ -20,12 +20,14 @@ import {
 } from '@react-native-firebase/auth';
 import { getApp } from '@react-native-firebase/app';
 import {
-  CACHE_SIZE_UNLIMITED, connectFirestoreEmulator, doc, getDoc, initializeFirestore, serverTimestamp,
-  setDoc, updateDoc, type Firestore,
+  CACHE_SIZE_UNLIMITED, arrayUnion, collection, connectFirestoreEmulator, doc, getDoc, initializeFirestore,
+  onSnapshot, serverTimestamp, setDoc, updateDoc, writeBatch, type Firestore,
 } from '@react-native-firebase/firestore';
 
 import type { AuthBackend, PendingCode } from './backend.ts';
 import type { UserFields, UserStore } from '../data/user.ts';
+import { paths } from '../data/paths.ts';
+import { founderMemberFields, newVillageFields, villageFromDoc, type VillageStore } from '../data/village.ts';
 
 let emulatorsConnected = false;
 let firestore: Firestore | null = null;
@@ -64,6 +66,32 @@ export function firebaseBackend(): AuthBackend {
     },
   };
 
+  const villages: VillageStore = {
+    // One batch, exactly the three writes firestore.rules allows for
+    // starting a village. Not awaited: the batch lands in the phone's cache
+    // at once and the commit only resolves when the server has it, which
+    // offline could be hours. A refusal is logged; the rules tests are what
+    // keep it from happening.
+    async start(founder, name, sceneKey) {
+      const ref = doc(collection(store, 'villages'));
+      const batch = writeBatch(store);
+      batch.set(ref, { ...newVillageFields(founder.uid, name, sceneKey), createdAt: serverTimestamp() });
+      batch.set(doc(store, paths.member(ref.id, founder.uid)), {
+        ...founderMemberFields(founder), joinedAt: serverTimestamp(), lastSeenAt: serverTimestamp(),
+      });
+      batch.update(doc(store, paths.user(founder.uid)), { villages: arrayUnion(ref.id) });
+      batch.commit().catch((e: unknown) => console.warn('Tahan: starting the village failed', e));
+      return ref.id;
+    },
+    watch(id, listener) {
+      return onSnapshot(
+        doc(store, paths.village(id)),
+        (snap) => listener(snap.exists() ? villageFromDoc(id, snap.data() as Record<string, unknown>) : null),
+        () => listener(null),
+      );
+    },
+  };
+
   return {
     kind: 'firebase',
     subscribe(listener) {
@@ -81,5 +109,6 @@ export function firebaseBackend(): AuthBackend {
     },
     signOut: () => signOut(auth),
     users,
+    villages,
   };
 }
