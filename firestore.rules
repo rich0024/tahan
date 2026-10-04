@@ -1,0 +1,33 @@
+rules_version = '2';
+
+// Tahan — Firestore rules.
+//
+// Milestone 1 has one collection: /users/{uid}, readable and writable only by
+// that person. Everything else is closed. Milestone 3 (T3.1) adds villages,
+// written once against membership, with tests run on the emulator.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    match /users/{uid} {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      // The phone number is never stored here; only these fields exist.
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(
+             ['displayName', 'avatar', 'companion', 'villages', 'textScale', 'createdAt'])
+        && request.resource.data.createdAt == request.time;
+      allow update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(
+             ['displayName', 'avatar', 'companion', 'villages', 'textScale', 'createdAt'])
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

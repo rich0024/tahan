@@ -1,10 +1,11 @@
-// Root layout: fonts, the splash hold, the scene.
+// Root layout: fonts, the session, the splash hold, the scene.
 //
-// The splash stays up until Caprasimo and Figtree are loaded, so first paint
-// is never in a fallback font. Both are bundled into the app binary by
+// The splash stays up until Caprasimo and Figtree are loaded and the session
+// knows whether someone is signed in, so first paint is never in a fallback
+// font and never flashes the sign-in screen at someone already signed in. Both are bundled into the app binary by
 // @expo-google-fonts — nothing is fetched at runtime.
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -13,6 +14,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Caprasimo_400Regular } from '@expo-google-fonts/caprasimo';
 import { Figtree_400Regular, Figtree_600SemiBold } from '@expo-google-fonts/figtree';
 
+import { SessionProvider, useSession } from '../src/auth/SessionProvider.tsx';
 import { warmAvatarPaths } from '../src/paint/avatarGeometry.ts';
 import { warmCompanionPaths } from '../src/paint/companionGeometry.ts';
 import { SceneProvider } from '../src/theme/SceneProvider.tsx';
@@ -26,15 +28,30 @@ warmCompanionPaths();
 void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  return (
+    <SessionProvider>
+      <Root />
+    </SessionProvider>
+  );
+}
+
+function Root() {
+  const { session } = useSession();
   const [loaded, error] = useFonts({
     [fonts.display]: Caprasimo_400Regular,
     [fonts.body]: Figtree_400Regular,
     [fonts.bodySemibold]: Figtree_600SemiBold,
   });
 
+  const fontsSettled = loaded || !!error;
+  const sessionKnown = session.status !== 'loading';
+  const [shown, setShown] = useState(false);
   useEffect(() => {
-    if (loaded || error) void SplashScreen.hideAsync();
-  }, [loaded, error]);
+    if (fontsSettled && sessionKnown && !shown) {
+      setShown(true);
+      void SplashScreen.hideAsync();
+    }
+  }, [fontsSettled, sessionKnown, shown]);
 
   if (!loaded && !error) return null;
 

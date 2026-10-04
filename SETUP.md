@@ -6,12 +6,13 @@ is on the `flutter` branch, untouched.
 
 | Ticket | State |
 | --- | --- |
-| T1.1 Scaffold and Firebase wiring | config written; **you** run the bootstrap, add the Firebase files, make the device builds |
+| T1.1 Scaffold and Firebase wiring | config written; **you** create the Firebase project and make the device build (below) |
 | T1.2 Theme and type | written; pure parts tested |
 | T1.3 ◆ Primitives and path parser | written; tested |
 | T1.4 ◆ Avatar geometry | written; tested shape-for-shape against the prototype, and rendered |
 | T1.5 Avatar component and picture cache | written; not yet run on a device |
-| T1.6 – T1.8 | not started |
+| T1.6 Sign in | written; tested in preview; **you** check it with Firebase on the iPhone (below) |
+| T1.7 – T1.8 | not started |
 
 ## Avatars: the detailed kit
 
@@ -43,7 +44,7 @@ colour, so any colour shades correctly.
 - **Type-checked against the real libraries.** `npm run typecheck` passes with
   TypeScript 6 against the actual React Native 0.86, Expo SDK 57, Skia and
   Reanimated 4 types — app code, tests, tools and config.
-- **84 tests pass** (`npm test`):
+- **102 tests pass** (`npm test`):
   - **Avatars.** Every path of every option parses; no hairstyle or extra
     leaves the frame; shadows are darker and highlights lighter than their base
     at the same hue; small faces drop their detail; a spec read back from the
@@ -51,6 +52,10 @@ colour, so any colour shades correctly.
   - **Companions** get the same checks: every path of every kind and option
     parses, nothing leaves the frame, every option draws something different,
     and a companion read back from the database is repaired to fit its kind.
+  - **Sign-in.** Typed, pasted and autofilled numbers; codes; the stated
+    resend wait; a first face drawn from the uid; the phone number never
+    stored; signing in twice finds the same document and signing out returns
+    to the start.
   - **Parser.** Accepts absolute `M L Q C Z` with implicit repetition; throws on
     every relative command, both arc forms, `H V S T`, and malformed input.
   - **Palettes and skies** re-read `design/tahan_palettes.dart` and the prototype
@@ -90,46 +95,103 @@ From this folder, on your Mac:
 npx expo start --go   # scan the QR code with Expo Go
 ```
 
-`--go` matters: because `expo-dev-client` is installed (for Firebase later),
+`--go` matters: because `expo-dev-client` is installed (for Firebase),
 plain `npx expo start` targets a Tahan development build, which isn't on your
-phone until T1.1's device build. Install Expo Go from the App Store or Google
+phone until you make one (below). In Expo Go, sign-in runs in preview. Install Expo Go from the App Store or Google
 Play first.
 
-Expo Go already includes Skia and Reanimated, so the milestone-1 review screen
-runs in it. That screen has: the nine scenes as chips (tap one — the screen
+Expo Go already includes Skia and Reanimated, so the app runs in it. Sign in
+with any number and code `123456`, then tap *Milestone 1 review*. That screen has: the nine scenes as chips (tap one — the screen
 should retint over 420ms with no flash), a type specimen, both ramps, the themed
 controls, 24 faces at 96/44/26pt, every hairstyle, all sixteen
 glasses-and-beard pairs, the companions, and a 200-avatar scroll test behind a
 button. Set the phone to its largest text size and look again.
 
-## T1.1 — the rest
+## Firebase and your iPhone (T1.1, T1.6)
 
-1. **Bundle identifier.** Replace `com.yourdomain.tahan` in `app.config.ts`.
-2. **Firebase.** In the Firebase console, add an iOS app and an Android app with
-   that identifier. Download `GoogleService-Info.plist` and
-   `google-services.json` into the project root. (Both are gitignored.
-   `app.config.ts` wires Firebase in only when both are present, so everything
-   above works before this step.)
-3. **Firebase packages:**
+Sign-in works before any of this: without Firebase the app uses a **preview**
+backend that keeps everything on the phone (any number, code `123456`, and a
+"Preview" card on screen). It is what runs in Expo Go. These steps switch it
+to real Firebase in a development build. About 45 minutes the first time,
+most of it waiting for Xcode.
+
+### 1. Create the Firebase project (console.firebase.google.com)
+
+1. **Create a project**, name it *Tahan*. Turn Google Analytics **off** — Tahan
+   doesn't use it.
+2. **Add an iOS app** (Project overview → Add app → Apple). Bundle ID
+   `com.rich0024.tahan`, nickname *Tahan iOS*. Register, then **download
+   `GoogleService-Info.plist`** into `~/Developer/tahan`. Skip the remaining
+   SDK steps (Next → Next → Continue to console).
+3. **Add an Android app**. Package name `com.rich0024.tahan`. Register, then
+   **download `google-services.json`** into `~/Developer/tahan`. Leave SHA-1
+   blank for now; it's needed only when you build for Android.
+4. **Turn on phone sign-in**: Build → Authentication → Get started →
+   Sign-in method → Phone → Enable → Save. Then open *Phone numbers for
+   testing* and add `+1 650-555-3434` with code `123456`. A test number sends
+   no text and works on the free plan.
+5. **Create the database**: Build → Firestore Database → Create database.
+   Pick the location closest to the family (it can't be changed later) and
+   **production mode**. Then open the **Rules** tab, replace everything with
+   the contents of `firestore.rules` from this repo, and **Publish**.
+
+Both downloaded files are gitignored. `app.config.ts` switches Firebase on
+only when both are in the project root.
+
+Texts to real numbers need the pay-as-you-go **Blaze** plan. Test numbers
+don't, so leave this until the family starts using it, and set a budget alert
+when you do.
+
+### 2. Get a development build onto your iPhone (free Apple ID)
+
+1. Install **Xcode** from the Mac App Store, open it once, and let it install
+   its components (including iOS).
+2. Xcode → Settings → Accounts → **+** → Apple ID. This gives you a free
+   *Personal Team*.
+3. On the iPhone: Settings → Privacy & Security → **Developer Mode** → On
+   (it restarts). Plug it into the Mac and tap **Trust**.
+4. In Terminal:
    ```sh
-   npx expo install @react-native-firebase/app @react-native-firebase/auth \
-     @react-native-firebase/firestore @react-native-firebase/storage \
-     @react-native-firebase/messaging @react-native-firebase/functions
-   ```
-4. **Emulator suite**, for every backend ticket:
-   ```sh
-   npm i -g firebase-tools
-   firebase init emulators   # auth, firestore, storage, functions
-   ```
-5. **Dev builds on real devices** (needs Xcode for iOS):
-   ```sh
+   cd ~/Developer/tahan
    npx expo run:ios --device
-   npx expo run:android --device
    ```
-   React Native Firebase does not run in Expo Go — from here on, use the dev build.
+   Pick your iPhone. The first build takes 10–20 minutes. If it stops on
+   signing: open `ios/Tahan.xcworkspace` in Xcode, select the *Tahan* target →
+   Signing & Capabilities, tick *Automatically manage signing*, choose your
+   Personal Team, close Xcode and run the command again.
+5. The first launch says *Untrusted Developer*: Settings → General → VPN &
+   Device Management → your Apple ID → **Trust**.
 
-**Done when** a dev build runs on a real iPhone and a real Android device and
-logs a successful Firebase init.
+With a free Apple ID the build stops opening after **7 days**. Run step 4
+again to reinstall. From now on start the dev server with `npx expo start`
+(not `--go`) and the Tahan app on your phone connects to it.
+
+### 3. Check T1.6
+
+1. The app opens on *What's your number?*. Enter `(650) 555-3434` and tap
+   *Send me a code*. A web page may flash up to check you're not a robot:
+   a free Apple ID can't use the silent push Firebase prefers, so it falls
+   back to that check.
+2. Enter `123456`. You land on a stand-in home with **your first face**, picked
+   from your account ID.
+3. In the Firebase console, Firestore shows `users/<your id>` with your name
+   (empty), your face as numbers, and **no phone number**.
+4. **Sign out**: you're back at the number screen. Sign in again with the same
+   number: **the same face** (the same document; nothing new is created).
+5. Force-quit and reopen: still signed in.
+
+### Later
+
+- **Android**: run `npx expo run:android --device`, then add the debug SHA-1
+  and SHA-256 to the Android app in Firebase (`cd android && ./gradlew
+  signingReport`) and download `google-services.json` again.
+- **Storage, messaging and functions** are added by the tickets that need them.
+  Push notifications need a paid Apple Developer account; with a free one,
+  adding messaging stops iOS builds from signing.
+- **Emulator suite**: `firebase.json` is ready. `npx firebase-tools
+  emulators:start` (needs Java), then start a build with
+  `EXPO_PUBLIC_EMULATOR_HOST=<your Mac's Wi-Fi IP>` and Auth and Firestore use
+  the emulators — codes appear in the emulator UI at localhost:4000.
 
 ---
 

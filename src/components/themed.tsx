@@ -10,9 +10,10 @@
 // is drawn by the app and looks the same on iOS and Android.
 
 import type { ReactNode } from 'react';
+import { forwardRef } from 'react';
 import {
-  Pressable, Text, View, type PressableProps, type StyleProp, type TextProps,
-  type TextStyle, type ViewStyle,
+  Pressable, Text, TextInput, View, type PressableProps, type StyleProp, type TextInputProps,
+  type TextProps, type TextStyle, type ViewStyle,
 } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,7 +24,7 @@ import { hitTarget, radius, type, type TypeVariant } from '../theme/tokens.ts';
 
 // ---------------------------------------------------------------------------
 
-export function Screen({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+export function Screen({ children, style }: { children?: ReactNode; style?: StyleProp<ViewStyle> }) {
   const bg = useSceneColor('bg');
   const insets = useSafeAreaInsets();
   const animated = useAnimatedStyle(() => ({ backgroundColor: bg.value }));
@@ -72,7 +73,7 @@ export interface ButtonProps extends Omit<PressableProps, 'children' | 'style'> 
   style?: StyleProp<ViewStyle>;
 }
 
-export function Button({ label, kind = 'filled', style, ...rest }: ButtonProps) {
+export function Button({ label, kind = 'filled', style, disabled, ...rest }: ButtonProps) {
   const { colors } = useScene();
   const accent = useSceneColor('accent');
   const outline = useSceneColor('accent400');
@@ -86,7 +87,14 @@ export function Button({ label, kind = 'filled', style, ...rest }: ButtonProps) 
   const labelColor = kind === 'filled' ? colors.onAccent : colors.accent700;
 
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={label} {...rest} style={style}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !!disabled }}
+      disabled={disabled}
+      {...rest}
+      style={[style, disabled && { opacity: 0.45 }]}
+    >
       {({ pressed }: { pressed: boolean }) => (
         <Animated.View
           style={[
@@ -168,3 +176,37 @@ export function Chip({ label, selected = false, ...rest }: ChipProps) {
 export function Wrap({ children, gap = 10 }: { children: ReactNode; gap?: number }) {
   return <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap, alignItems: 'flex-end' }}>{children}</View>;
 }
+
+// ---------------------------------------------------------------------------
+
+/**
+ * A text field. Round like every other control, 56pt tall at least, and it
+ * grows with the text size rather than clipping.
+ */
+export const Field = forwardRef<TextInput, TextInputProps>(function Field({ style, ...rest }, ref) {
+  const { colors } = useScene();
+  return (
+    <TextInput
+      ref={ref}
+      placeholderTextColor={colors.inkMuted}
+      selectionColor={colors.accent}
+      {...rest}
+      style={[
+        type.body,
+        {
+          fontSize: 18,
+          lineHeight: undefined,
+          minHeight: hitTarget,
+          paddingHorizontal: 22,
+          paddingVertical: 12,
+          borderRadius: radius.pill,
+          borderWidth: 1.5,
+          borderColor: colors.accent300,
+          backgroundColor: colors.surface,
+          color: colors.ink,
+        },
+        style,
+      ]}
+    />
+  );
+});
