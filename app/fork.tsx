@@ -38,6 +38,15 @@ function Fork() {
           </T>
         </View>
         <T>Tahan is made of villages: a small, private group of the people you'd call first.</T>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+          <Button label="Change my face" kind="outlined" style={{ flexGrow: 1, flexBasis: 150 }} onPress={() => router.push('/editor')} />
+          <Button
+            label={user.companion ? (user.companion.name || 'Your companion') : 'Add a companion'}
+            kind="outlined"
+            style={{ flexGrow: 1, flexBasis: 150 }}
+            onPress={() => router.push({ pathname: '/editor', params: { mode: 'companion' } })}
+          />
+        </View>
 
         <Card style={{ gap: 10 }}>
           <T variant="sectionHeading">Start a village</T>

@@ -89,7 +89,7 @@ function Face() {
             />
 
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-              <Button label="Change my face" kind="outlined" style={{ flexGrow: 1, flexBasis: 150 }} onPress={() => router.push('/face-editor')} />
+              <Button label="Change my face" kind="outlined" style={{ flexGrow: 1, flexBasis: 150 }} onPress={() => router.push('/editor')} />
               <Button label="Surprise me" kind="outlined" style={{ flexGrow: 1, flexBasis: 150 }} onPress={surprise} />
             </View>
 

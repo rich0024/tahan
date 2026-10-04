@@ -247,3 +247,10 @@ export function withAlpha(hex: string, alpha: number): string {
   const a = Math.round(Math.min(1, Math.max(0, alpha)) * 1000) / 1000;
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 }
+
+/** Perceptual distance between two colours (OKLab, Euclidean). */
+export function oklabDistance(a: string, b: string): number {
+  const x = rgbToOklab(hexToRgb(a));
+  const y = rgbToOklab(hexToRgb(b));
+  return Math.hypot(x.l - y.l, x.a - y.a, x.b - y.b);
+}

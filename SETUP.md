@@ -13,7 +13,7 @@ is on the `flutter` branch, untouched.
 | T1.5 Avatar component and picture cache | written; not yet run on a device |
 | T1.6 Sign in | written; tested in preview; **you** check it with Firebase on the iPhone (below) |
 | T1.7 Onboarding | written; runs in Expo Go (preview sign-in) |
-| T1.8 Avatar editor | not started |
+| T1.8 Avatar editor | written; your face and your companion's, runs in Expo Go |
 
 ## Avatars: the detailed kit
 
@@ -45,7 +45,7 @@ colour, so any colour shades correctly.
 - **Type-checked against the real libraries.** `npm run typecheck` passes with
   TypeScript 6 against the actual React Native 0.86, Expo SDK 57, Skia and
   Reanimated 4 types — app code, tests, tools and config.
-- **115 tests pass** (`npm test`):
+- **128 tests pass** (`npm test`):
   - **Avatars.** Every path of every option parses; no hairstyle or extra
     leaves the frame; shadows are darker and highlights lighter than their base
     at the same hue; small faces drop their detail; a spec read back from the
@@ -62,6 +62,11 @@ colour, so any colour shades correctly.
     back after the face; Surprise me is a stable sequence; the welcome's cream
     type clears 12:1 on its scrim; the evening artwork parses and stays in
     frame, and the first face never tucks under the status bar.
+  - **Editor.** Every field of a face has a control, in the lab's order; a
+    style, a swatch, a slider position and "any colour" each land in the saved
+    spec and survive the round trip; matching eyes stay matching until the
+    switch is on; sliders find where a saved colour sits; every swatch has a
+    spoken name; a companion keeps its name in the user document.
   - **Parser.** Accepts absolute `M L Q C Z` with implicit repetition; throws on
     every relative command, both arc forms, `H V S T`, and malformed input.
   - **Palettes and skies** re-read `design/tahan_palettes.dart` and the prototype
@@ -173,7 +178,7 @@ With a free Apple ID the build stops opening after **7 days**. Run step 4
 again to reinstall. From now on start the dev server with `npx expo start`
 (not `--go`) and the Tahan app on your phone connects to it.
 
-### 3. Check T1.6 and T1.7
+### 3. Check T1.6 – T1.8
 
 1. The app opens on the evening welcome. Tap *Start on my own*, enter
    `(650) 555-3434` and tap
@@ -189,6 +194,9 @@ again to reinstall. From now on start the dev server with `npx expo start`
    with the same number: **the same face and name** (the same document;
    nothing new is created), straight to the fork.
 5. Force-quit and reopen: still signed in.
+6. *Change my face*: change the hair, the colour, anything — the face at the
+   top changes as you touch. Wait a second, force-quit, reopen: the change is
+   still there. Do the same under your companion.
 
 ### Later
 

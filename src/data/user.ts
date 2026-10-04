@@ -13,13 +13,20 @@ import {
   type AvatarSpec, type CompanionSpec,
 } from '../theme/palettes.ts';
 
+/** A companion, with the name they're known by. */
+export interface TahanCompanion extends CompanionSpec {
+  readonly name: string;
+}
+
+export const MAX_COMPANION_NAME = 30;
+
 export interface TahanUser {
   readonly uid: string;
   /** Empty until the name-and-face onboarding screen. */
   readonly displayName: string;
   readonly avatar: AvatarSpec;
   /** At most one: a dog, a cat or a baby. Belongs to the person, not a village. */
-  readonly companion: CompanionSpec | null;
+  readonly companion: TahanCompanion | null;
   readonly villages: readonly string[];
   readonly textScale: number;
 }
@@ -57,8 +64,9 @@ export function userFromDoc(uid: string, data: Record<string, unknown>): TahanUs
   const avatar = data.avatar && typeof data.avatar === 'object'
     ? specFromMap(data.avatar as Record<string, unknown>)
     : firstFace(uid);
-  const companion = data.companion && typeof data.companion === 'object'
-    ? companionFromMap(data.companion as Record<string, unknown>)
+  const stored = data.companion && typeof data.companion === 'object' ? data.companion as Record<string, unknown> : null;
+  const companion = stored
+    ? { ...companionFromMap(stored), name: typeof stored.name === 'string' ? stored.name.trim().slice(0, MAX_COMPANION_NAME) : '' }
     : null;
   const textScale = typeof data.textScale === 'number' && Number.isFinite(data.textScale)
     ? Math.min(2, Math.max(1, data.textScale))
@@ -77,7 +85,7 @@ export function userToFields(user: TahanUser): UserFields {
   return {
     displayName: user.displayName,
     avatar: specToMap(user.avatar),
-    companion: user.companion ? companionToMap(user.companion) : null,
+    companion: user.companion ? { ...companionToMap(user.companion), name: user.companion.name } : null,
     villages: [...user.villages],
     textScale: user.textScale,
   };
