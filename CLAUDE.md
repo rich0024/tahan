@@ -82,6 +82,11 @@ logic, put the logic in a pure module and test it there.
   and the invite share action (`Share`). Everything else is drawn by the app and
   looks identical on both platforms — including the tab bar (a custom `tabBar`)
   and headers (`headerShown: false` everywhere).
+- **Scene backdrops are paintings** (`assets/scenes/<key>.webp`, the owner's
+  call): generated in one style from the drawn scenes' content, prompts in
+  `design/scene-prompts.md`. Drift, wash and window glass stay in code on top.
+  The drawn scenes in `src/paint/scenes/` remain the fallback while an image
+  loads — keep them. Avatars stay drawn in code.
 - Surfaces fade through the retint with `useSceneColor()`; text uses the
   destination colours from `useScene().colors`.
 

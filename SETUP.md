@@ -15,7 +15,7 @@ is on the `flutter` branch, untouched.
 | T1.7 Onboarding | written; runs in Expo Go (preview sign-in) |
 | T1.8 Avatar editor | written; your face and your companion's, runs in Expo Go |
 | T2.1 Scene data | transcribed from the prototype by `npm run scenes`; tested layer by layer |
-| T2.2 ◆ ScenePainter | written; **owner review** — Fork → *The nine scenes* |
+| T2.2 ◆ ScenePainter | written; scenes are now **paintings** (Higgsfield, FLUX 3), the drawn ones the fallback — Fork → *The nine scenes* |
 
 ## Avatars: the detailed kit
 
@@ -47,7 +47,7 @@ colour, so any colour shades correctly.
 - **Type-checked against the real libraries.** `npm run typecheck` passes with
   TypeScript 6 against the actual React Native 0.86, Expo SDK 57, Skia and
   Reanimated 4 types — app code, tests, tools and config.
-- **144 tests pass** (`npm test`):
+- **146 tests pass** (`npm test`):
   - **Avatars.** Every path of every option parses; no hairstyle or extra
     leaves the frame; shadows are darker and highlights lighter than their base
     at the same hue; small faces drop their detail; a spec read back from the
