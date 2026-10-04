@@ -195,8 +195,9 @@ again to reinstall. From now on start the dev server with `npx expo start`
    nothing new is created), straight to the fork.
 5. Force-quit and reopen: still signed in.
 6. *Change my face*: change the hair, the colour, anything — the face at the
-   top changes as you touch. Wait a second, force-quit, reopen: the change is
-   still there. Do the same under your companion.
+   top changes as you touch. Close with the ✕ and it asks whether to discard;
+   tap *Save* instead, force-quit, reopen: the change is still there. Do the
+   same under your companion.
 
 ### Later
 

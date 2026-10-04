@@ -4,6 +4,7 @@
 import { Pressable, type StyleProp, type ViewStyle } from 'react-native';
 // One file per icon: the package's index pulls in all of them.
 import ChevronLeft from 'lucide-react-native/icons/chevron-left';
+import X from 'lucide-react-native/icons/x';
 
 import { withAlpha } from '../theme/oklch.ts';
 import { TahanEvening } from '../theme/palettes.ts';
@@ -14,9 +15,13 @@ const SIZE = 40;
 const slop = (hitTarget - SIZE) / 2;
 const darkWash = withAlpha(TahanEvening.scrim, 0.4);
 
-export function BackButton({ onPress, onDark = false, label = 'Back', style }: {
-  onPress: () => void; onDark?: boolean; label?: string; style?: StyleProp<ViewStyle>;
+export function BackButton({ onPress, onDark = false, label = 'Back', icon = 'back', style }: {
+  onPress: () => void; onDark?: boolean; label?: string;
+  /** `close` for leaving without saving. */
+  icon?: 'back' | 'close';
+  style?: StyleProp<ViewStyle>;
 }) {
+  const Icon = icon === 'close' ? X : ChevronLeft;
   const { colors } = useScene();
   return (
     <Pressable
@@ -34,7 +39,7 @@ export function BackButton({ onPress, onDark = false, label = 'Back', style }: {
         style,
       ]}
     >
-      <ChevronLeft size={20} strokeWidth={2.75} color={onDark ? TahanEvening.cream : colors.ink} />
+      <Icon size={20} strokeWidth={2.75} color={onDark ? TahanEvening.cream : colors.ink} />
     </Pressable>
   );
 }

@@ -2,16 +2,17 @@
 //
 // The face you're editing stays pinned at the top while the parts scroll
 // beneath it, in the avatar lab's order, with a row of chips to jump between
-// them. Every change shows at once; it's saved a moment after you stop, and
-// again on the way out, to the phone's copy of your document first — so a
-// force-quit keeps it.
+// them. Every change shows at once, but nothing is kept until Save: closing,
+// swiping back or the Android back button with changes made asks first
+// whether to discard them. Save writes to the phone's copy of your document
+// straight away, so a force-quit after it keeps the change.
 //
 // No size previews here: those were for designing the kit, not for choosing
 // a face.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -31,7 +32,6 @@ import { hitTarget, radius } from '../src/theme/tokens.ts';
 import { Avatar, CompanionAvatar } from '../src/widgets/Avatar.tsx';
 
 const HERO = 152;
-const SAVE_AFTER_MS = 400;
 
 type Mode = 'person' | 'pet';
 
@@ -61,36 +61,34 @@ function Editor() {
   const presses = useRef({ person: 0, pet: 0 });
 
   // ------------------------------------------------------------- saving
-  const saved = useRef({ avatar: specKey(user.avatar), companion: JSON.stringify(user.companion) });
-  const pending = useRef<UserChanges | null>(null);
-  const flushRef = useRef(() => {});
-  flushRef.current = () => {
-    if (!pending.current) return;
-    updateUser(pending.current);
-    pending.current = null;
+  const changes: UserChanges = {
+    ...(specKey(person) !== specKey(user.avatar) ? { avatar: person } : {}),
+    ...(JSON.stringify(pet) !== JSON.stringify(user.companion) ? { companion: pet } : {}),
   };
+  const dirty = Object.keys(changes).length > 0;
+  const dirtyNow = useRef(dirty);
+  dirtyNow.current = dirty;
+  const [confirming, setConfirming] = useState(false);
+  const leaving = useRef(false);
 
-  useEffect(() => {
-    const avatar = specKey(person);
-    const companion = JSON.stringify(pet);
-    const changes: UserChanges = {
-      ...(avatar !== saved.current.avatar ? { avatar: person } : {}),
-      ...(companion !== saved.current.companion ? { companion: pet } : {}),
-    };
-    if (Object.keys(changes).length === 0) return;
-    pending.current = { ...pending.current, ...changes };
-    saved.current = { avatar, companion };
-    const id = setTimeout(() => flushRef.current(), SAVE_AFTER_MS);
-    return () => clearTimeout(id);
-  }, [person, pet]);
-
-  useEffect(() => () => flushRef.current(), []);
-
-  const done = () => {
-    flushRef.current();
+  const leave = () => {
+    leaving.current = true;
     if (router.canGoBack()) router.back();
     else router.replace('/');
   };
+  const save = () => {
+    if (dirty) updateUser(changes);
+    leave();
+  };
+  const close = () => (dirty ? setConfirming(true) : leave());
+
+  // Swipe-back and the Android back button ask too.
+  const navigation = useNavigation();
+  useEffect(() => navigation.addListener('beforeRemove', (e) => {
+    if (leaving.current || !dirtyNow.current) return;
+    e.preventDefault();
+    setConfirming(true);
+  }), [navigation]);
 
   // ------------------------------------------------------------- changes
   const spec: AvatarSpec | CompanionSpec | null = mode === 'person' ? person : pet;
@@ -153,21 +151,24 @@ function Editor() {
           <View
             style={{ backgroundColor: colors.bg, paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 8, gap: 8 }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <BackButton onPress={done} label="Done" />
-              <View style={{ flexDirection: 'row', gap: 6, flexGrow: 1 }} accessibilityRole="tablist">
-                <Chip label="You" selected={mode === 'person'} onPress={() => setMode('person')} accessibilityRole="tab" />
-                <Chip label={companionLabel} selected={mode === 'pet'} onPress={() => setMode('pet')} accessibilityRole="tab" />
+            {confirming ? (
+              <View style={{ gap: 8, backgroundColor: colors.surface, borderRadius: radius.container, padding: 14 }} accessibilityLiveRegion="polite">
+                <T variant="rowTitle">Discard your changes?</T>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  <Button label="Keep editing" kind="outlined" style={{ flexGrow: 1, flexBasis: 140 }} onPress={() => setConfirming(false)} />
+                  <Button label="Discard" style={{ flexGrow: 1, flexBasis: 140 }} onPress={leave} />
+                </View>
               </View>
-              {spec && (
-                <Button
-                  label="Surprise me"
-                  kind="text"
-                  onPress={surprise}
-                  accessibilityHint={mode === 'person' ? 'Picks a new face' : 'Picks a new look for your companion'}
-                />
-              )}
-            </View>
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <BackButton onPress={close} icon="close" label={dirty ? 'Close without saving' : 'Close'} />
+                <View style={{ flexDirection: 'row', gap: 6, flexGrow: 1 }} accessibilityRole="tablist">
+                  <Chip label="You" selected={mode === 'person'} onPress={() => setMode('person')} accessibilityRole="tab" />
+                  <Chip label={companionLabel} selected={mode === 'pet'} onPress={() => setMode('pet')} accessibilityRole="tab" />
+                </View>
+                <Button label="Save" disabled={!dirty} onPress={save} accessibilityHint="Keeps your changes" />
+              </View>
+            )}
             <View style={{ alignItems: 'center' }}>
               {spec
                 ? draw(spec, HERO, mode === 'person' ? `Your face${user.displayName ? `, ${user.displayName}` : ''}` : `Your companion${pet?.name ? `, ${pet.name}` : ''}`)
@@ -177,8 +178,14 @@ function Editor() {
                   </View>
                 )}
             </View>
-            {parts.length > 0 && (
+            {spec && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 8 }}>
+                <Chip
+                  label="Surprise me"
+                  selected
+                  onPress={surprise}
+                  accessibilityHint={mode === 'person' ? 'Picks a new face' : 'Picks a new look for your companion'}
+                />
                 {parts.map((p) => <Chip key={p.key} label={p.title} onPress={() => jump(p.key)} accessibilityHint={`Jumps to ${p.title}`} />)}
               </ScrollView>
             )}
