@@ -50,6 +50,11 @@ export function previewBackend(kv: KeyValue, now: () => number = Date.now): Auth
     async create(id, fields: UserFields) {
       await kv.setItem(userKey(id), JSON.stringify({ ...fields, createdAt: now() }));
     },
+    async update(id, fields: UserFields) {
+      const raw = await kv.getItem(userKey(id));
+      if (!raw) throw authError('not-found', `no user ${id}`);
+      await kv.setItem(userKey(id), JSON.stringify({ ...(JSON.parse(raw) as object), ...fields }));
+    },
   };
 
   return {

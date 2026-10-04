@@ -19,7 +19,7 @@ import {
   connectAuthEmulator, getAuth, onAuthStateChanged, signInWithPhoneNumber, signOut,
 } from '@react-native-firebase/auth';
 import {
-  connectFirestoreEmulator, doc, getDoc, getFirestore, serverTimestamp, setDoc,
+  connectFirestoreEmulator, doc, getDoc, getFirestore, serverTimestamp, setDoc, updateDoc,
 } from '@react-native-firebase/firestore';
 
 import type { AuthBackend, PendingCode } from './backend.ts';
@@ -45,6 +45,9 @@ export function firebaseBackend(): AuthBackend {
     },
     async create(uid, fields: UserFields) {
       await setDoc(doc(db, 'users', uid), { ...fields, createdAt: serverTimestamp() });
+    },
+    async update(uid, fields: UserFields) {
+      await updateDoc(doc(db, 'users', uid), fields);
     },
   };
 

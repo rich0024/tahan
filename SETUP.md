@@ -12,7 +12,8 @@ is on the `flutter` branch, untouched.
 | T1.4 ◆ Avatar geometry | written; tested shape-for-shape against the prototype, and rendered |
 | T1.5 Avatar component and picture cache | written; not yet run on a device |
 | T1.6 Sign in | written; tested in preview; **you** check it with Firebase on the iPhone (below) |
-| T1.7 – T1.8 | not started |
+| T1.7 Onboarding | written; runs in Expo Go (preview sign-in) |
+| T1.8 Avatar editor | not started |
 
 ## Avatars: the detailed kit
 
@@ -44,7 +45,7 @@ colour, so any colour shades correctly.
 - **Type-checked against the real libraries.** `npm run typecheck` passes with
   TypeScript 6 against the actual React Native 0.86, Expo SDK 57, Skia and
   Reanimated 4 types — app code, tests, tools and config.
-- **102 tests pass** (`npm test`):
+- **115 tests pass** (`npm test`):
   - **Avatars.** Every path of every option parses; no hairstyle or extra
     leaves the frame; shadows are darker and highlights lighter than their base
     at the same hue; small faces drop their detail; a spec read back from the
@@ -56,6 +57,11 @@ colour, so any colour shades correctly.
     resend wait; a first face drawn from the uid; the phone number never
     stored; signing in twice finds the same document and signing out returns
     to the start.
+  - **Onboarding.** A cold start walks welcome → number → code → name and
+    face and lands on the fork; an invitation link skips the welcome and comes
+    back after the face; Surprise me is a stable sequence; the welcome's cream
+    type clears 12:1 on its scrim; the evening artwork parses and stays in
+    frame, and the first face never tucks under the status bar.
   - **Parser.** Accepts absolute `M L Q C Z` with implicit repetition; throws on
     every relative command, both arc forms, `H V S T`, and malformed input.
   - **Palettes and skies** re-read `design/tahan_palettes.dart` and the prototype
@@ -100,8 +106,9 @@ plain `npx expo start` targets a Tahan development build, which isn't on your
 phone until you make one (below). In Expo Go, sign-in runs in preview. Install Expo Go from the App Store or Google
 Play first.
 
-Expo Go already includes Skia and Reanimated, so the app runs in it. Sign in
-with any number and code `123456`, then tap *Milestone 1 review*. That screen has: the nine scenes as chips (tap one — the screen
+Expo Go already includes Skia and Reanimated, so the app runs in it. Walk the
+onboarding — welcome, any number, code `123456`, a name and a face — and on the
+last screen tap *Milestone 1 review*. That screen has: the nine scenes as chips (tap one — the screen
 should retint over 420ms with no flash), a type specimen, both ramps, the themed
 controls, 24 faces at 96/44/26pt, every hairstyle, all sixteen
 glasses-and-beard pairs, the companions, and a 200-avatar scroll test behind a
@@ -166,18 +173,21 @@ With a free Apple ID the build stops opening after **7 days**. Run step 4
 again to reinstall. From now on start the dev server with `npx expo start`
 (not `--go`) and the Tahan app on your phone connects to it.
 
-### 3. Check T1.6
+### 3. Check T1.6 and T1.7
 
-1. The app opens on *What's your number?*. Enter `(650) 555-3434` and tap
+1. The app opens on the evening welcome. Tap *Start on my own*, enter
+   `(650) 555-3434` and tap
    *Send me a code*. A web page may flash up to check you're not a robot:
    a free Apple ID can't use the silent push Firebase prefers, so it falls
    back to that check.
-2. Enter `123456`. You land on a stand-in home with **your first face**, picked
-   from your account ID.
-3. In the Firebase console, Firestore shows `users/<your id>` with your name
-   (empty), your face as numbers, and **no phone number**.
-4. **Sign out**: you're back at the number screen. Sign in again with the same
-   number: **the same face** (the same document; nothing new is created).
+2. Enter `123456`. You land on *And this is you* with **your first face**,
+   picked from your account ID. Try *Surprise me*, type your name, *Come in*:
+   you're on the fork (start a village, or wait for an invitation).
+3. In the Firebase console, Firestore shows `users/<your id>` with your name,
+   your face as numbers, and **no phone number**.
+4. **Sign out** (bottom of the fork): you're back at the welcome. Sign in again
+   with the same number: **the same face and name** (the same document;
+   nothing new is created), straight to the fork.
 5. Force-quit and reopen: still signed in.
 
 ### Later

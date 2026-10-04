@@ -75,7 +75,9 @@ logic, put the logic in a pure module and test it there.
   Native a weight is its own family: use `type.*` from `tokens.ts`, never
   `fontWeight`.
 - Radius 16 for containers, 999 for buttons, chips, inputs and avatars.
-- Icons: `lucide-react-native`, `strokeWidth={2.75}`.
+- Icons: `lucide-react-native`, `strokeWidth={2.75}`, each imported from its own
+  file (`import ChevronLeft from 'lucide-react-native/icons/chevron-left'`) — the
+  package index pulls in every icon.
 - Platform-native only for modal sheets (Expo Router `presentation: 'formSheet'`)
   and the invite share action (`Share`). Everything else is drawn by the app and
   looks identical on both platforms — including the tab bar (a custom `tabBar`)

@@ -18,6 +18,8 @@ import {
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { withAlpha } from '../theme/oklch.ts';
+import { TahanEvening } from '../theme/palettes.ts';
 import { useScene, useSceneColor } from '../theme/SceneProvider.tsx';
 import type { SceneColorRole } from '../theme/sceneColors.ts';
 import { hitTarget, radius, type, type TypeVariant } from '../theme/tokens.ts';
@@ -65,7 +67,14 @@ export function T({ variant = 'body', color = 'ink', style, ...rest }: TProps) {
 
 // ---------------------------------------------------------------------------
 
-type ButtonKind = 'filled' | 'outlined' | 'text';
+/**
+ * `onDark` is the welcome's second door: cream on a faint cream wash, for use
+ * over the evening artwork only.
+ */
+type ButtonKind = 'filled' | 'outlined' | 'text' | 'onDark';
+
+const onDarkFill = withAlpha(TahanEvening.cream, 0.14);
+const onDarkLine = withAlpha(TahanEvening.cream, 0.35);
 
 export interface ButtonProps extends Omit<PressableProps, 'children' | 'style'> {
   label: string;
@@ -81,10 +90,11 @@ export function Button({ label, kind = 'filled', style, disabled, ...rest }: But
   const fill = useAnimatedStyle(() => {
     if (kind === 'filled') return { backgroundColor: accent.value, borderColor: accent.value };
     if (kind === 'outlined') return { backgroundColor: 'transparent', borderColor: outline.value };
+    if (kind === 'onDark') return { backgroundColor: onDarkFill, borderColor: onDarkLine };
     return { backgroundColor: 'transparent', borderColor: 'transparent' };
   });
 
-  const labelColor = kind === 'filled' ? colors.onAccent : colors.accent700;
+  const labelColor = kind === 'filled' ? colors.onAccent : kind === 'onDark' ? TahanEvening.cream : colors.accent700;
 
   return (
     <Pressable
@@ -109,7 +119,7 @@ export function Button({ label, kind = 'filled', style, disabled, ...rest }: But
             },
             fill,
             pressed && {
-              backgroundColor: kind === 'filled' ? colors.accent800 : colors.accent100,
+              backgroundColor: kind === 'filled' ? colors.accent800 : kind === 'onDark' ? onDarkLine : colors.accent100,
             },
           ]}
         >

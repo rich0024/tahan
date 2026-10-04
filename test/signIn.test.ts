@@ -107,6 +107,7 @@ describe('the user document', () => {
     const store: UserStore = {
       get: async (uid) => docs.get(uid) ?? null,
       create: async (uid, fields) => { creates++; docs.set(uid, { ...fields, createdAt: 1 }); },
+      update: async (uid, fields) => { docs.set(uid, { ...docs.get(uid), ...fields }); },
     };
     const first = await ensureUser(store, 'u1');
     const again = await ensureUser(store, 'u1');

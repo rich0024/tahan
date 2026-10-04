@@ -237,3 +237,13 @@ function labToHexUnclamped(lab: Oklab): string {
   );
   return `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`.toUpperCase();
 }
+
+/**
+ * A colour at an opacity, as a CSS rgba() string — for scrims and fades that
+ * must let the drawing beneath show through. React Native and Skia both read it.
+ */
+export function withAlpha(hex: string, alpha: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  const a = Math.round(Math.min(1, Math.max(0, alpha)) * 1000) / 1000;
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}

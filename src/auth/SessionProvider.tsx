@@ -17,7 +17,8 @@ import { Redirect } from 'expo-router';
 
 import type { AuthBackend, PendingCode } from './backend.ts';
 import { memoryKeyValue, previewBackend, type KeyValue } from './previewBackend.ts';
-import { ensureUser, type TahanUser } from '../data/user.ts';
+import { changesToFields, ensureUser, type TahanUser, type UserChanges } from '../data/user.ts';
+import { startRoute } from './onboarding.ts';
 
 function deviceKeyValue(): KeyValue {
   try {
@@ -62,6 +63,20 @@ interface SessionContextValue {
   /** Back to the number screen without signing in. */
   clearPending(): void;
   signOut(): Promise<void>;
+  /**
+   * An invitation that arrived by link and hasn't been dealt with yet. Held
+   * through sign-in and the first face, then shown.
+   */
+  readonly invite: string | null;
+  setInvite(code: string | null): void;
+  /**
+   * Changes the signed-in person's own document. The app shows the change at
+   * once; the write goes to the phone's copy straight away and to the server
+   * when there's signal.
+   */
+  updateUser(changes: UserChanges): void;
+  /** Where the app should be, given who's signed in and any invitation. */
+  readonly start: string | null;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -71,6 +86,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session>({ status: 'loading' });
   const [pending, setPending] = useState<PendingCode | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [invite, setInvite] = useState<string | null>(null);
   const latestUid = useRef<string | null>(null);
 
   useEffect(() => backend.subscribe((uid) => {
@@ -105,10 +121,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     await backend.signOut();
   }, [backend]);
 
+  const sessionNow = useRef(session);
+  sessionNow.current = session;
+  const updateUser = useCallback((changes: UserChanges) => {
+    const current = sessionNow.current;
+    if (current.status !== 'signedIn') return;
+    setSession({ status: 'signedIn', user: { ...current.user, ...changes } });
+    backend.users.update(current.user.uid, changesToFields(changes)).catch((e: unknown) => {
+      console.warn('Tahan: saving your details failed', e);
+    });
+  }, [backend]);
+
+  const start = session.status === 'signedIn' ? startRoute(session.user, invite)
+    : session.status === 'signedOut' ? startRoute(null, invite)
+    : null;
+
   const value = useMemo<SessionContextValue>(() => ({
     session, backend: backend.kind, pending, sendCode, confirmCode,
-    clearPending: () => setPending(null), signOut,
-  }), [session, backend, pending, sendCode, confirmCode, signOut]);
+    clearPending: () => setPending(null), signOut, invite, setInvite, updateUser, start,
+  }), [session, backend, pending, sendCode, confirmCode, signOut, invite, updateUser, start]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

@@ -105,12 +105,30 @@ export function sceneByKey(key: SceneKey): ScenePalette {
   return found;
 }
 
-/** Fixed palette for onboarding — there is no village yet, so no scene. */
+/**
+ * Fixed palette for onboarding — there is no village yet, so no scene. The
+ * first four are the brief's; the rest are the welcome artwork's, as the
+ * prototype draws it (design/Tahan.dc.html, 16a and 16b).
+ */
 export const TahanEvening = {
   skyStops: ['#26241F', '#4A3C2E', '#A85F31', '#E0975C'],
   cream: '#F7ECD9',
   lampLight: '#F6D9A0',
   doorLight: '#F0BD72',
+
+  skyPositions: [0, 0.42, 0.72, 1],
+  /** The shorter sky behind the sign-in band and the first face. */
+  bandStops: ['#2B271F', '#8A5330', '#E0975C'],
+  bandPositions: [0, 0.55, 1],
+  star: '#F6E6C8',
+  farHill: '#3A2F26',
+  nearHill: '#2B241E',
+  bandHill: '#33291F',
+  house: '#221D19',
+  roof: '#1B1714',
+  lantern: '#FFD9A0',
+  /** Behind the welcome's text. Cream on this is 14:1. */
+  scrim: '#1C1814',
 } as const;
 
 /**

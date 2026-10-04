@@ -50,7 +50,7 @@ export function newUserFields(uid: string): UserFields {
   };
 }
 
-const MAX_NAME = 40;
+const MAX_NAME = 40; // as onboarding.ts
 
 /** Reads a stored document, repairing anything malformed rather than failing to sign in. */
 export function userFromDoc(uid: string, data: Record<string, unknown>): TahanUser {
@@ -88,6 +88,17 @@ export interface UserStore {
   get(uid: string): Promise<Record<string, unknown> | null>;
   /** Creates the document. Adds createdAt. */
   create(uid: string, fields: UserFields): Promise<void>;
+  /** Changes some fields of an existing document, leaving the rest. */
+  update(uid: string, fields: UserFields): Promise<void>;
+}
+
+/** The fields a person can change about themselves. */
+export type UserChanges = Partial<Pick<TahanUser, 'displayName' | 'avatar' | 'companion' | 'textScale'>>;
+
+/** Changes as stored fields — only the ones given. */
+export function changesToFields(changes: UserChanges): UserFields {
+  const all = userToFields({ uid: '', displayName: '', avatar: firstFace(''), companion: null, villages: [], textScale: 1, ...changes });
+  return Object.fromEntries(Object.keys(changes).map((k) => [k, all[k]]));
 }
 
 /**
