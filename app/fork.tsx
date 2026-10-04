@@ -70,6 +70,7 @@ function Fork() {
 
         <View style={{ gap: 4, marginTop: 8 }}>
           <Button label="Milestone 1 review" kind="text" onPress={() => router.push('/review')} />
+          <Button label="The nine scenes" kind="text" onPress={() => router.push('/scenes')} />
           <Button label="Sign out" kind="text" onPress={() => void signOut()} />
         </View>
       </ScrollView>

@@ -14,6 +14,8 @@ is on the `flutter` branch, untouched.
 | T1.6 Sign in | written; tested in preview; **you** check it with Firebase on the iPhone (below) |
 | T1.7 Onboarding | written; runs in Expo Go (preview sign-in) |
 | T1.8 Avatar editor | written; your face and your companion's, runs in Expo Go |
+| T2.1 Scene data | transcribed from the prototype by `npm run scenes`; tested layer by layer |
+| T2.2 ◆ ScenePainter | written; **owner review** — Fork → *The nine scenes* |
 
 ## Avatars: the detailed kit
 
@@ -45,7 +47,7 @@ colour, so any colour shades correctly.
 - **Type-checked against the real libraries.** `npm run typecheck` passes with
   TypeScript 6 against the actual React Native 0.86, Expo SDK 57, Skia and
   Reanimated 4 types — app code, tests, tools and config.
-- **128 tests pass** (`npm test`):
+- **144 tests pass** (`npm test`):
   - **Avatars.** Every path of every option parses; no hairstyle or extra
     leaves the frame; shadows are darker and highlights lighter than their base
     at the same hue; small faces drop their detail; a spec read back from the
@@ -67,6 +69,11 @@ colour, so any colour shades correctly.
     spec and survive the round trip; matching eyes stay matching until the
     switch is on; sliders find where a saved colour sits; every swatch has a
     spoken name; a companion keeps its name in the user document.
+  - **Scenes.** The prototype's own scenes() is run and compared with the
+    nine scene files layer by layer — count, kind, colour, opacity, geometry
+    and floor; the seven `T` curves became exactly the `Q`s below; painted
+    into any rect a scene scales on width only, crops at header height, and
+    its ground colour carries it to the bottom of a tall screen.
   - **Parser.** Accepts absolute `M L Q C Z` with implicit repetition; throws on
     every relative command, both arc forms, `H V S T`, and malformed input.
   - **Palettes and skies** re-read `design/tahan_palettes.dart` and the prototype
@@ -246,7 +253,7 @@ The top of the Night sky is `#2E2B25`; the darkest hair is `#2E2318`. Contrast:
 head. Night is the first village's scene. A hairline highlight, or lifting the
 sky's top stop slightly, would fix it.
 
-### 3. The scene data uses `T`, which the parser is forbidden to accept
+### 3. The scene data uses `T`, which the parser is forbidden to accept — done in T2.1
 
 Of the 62 layer paths in the prototype, 55 parse clean and exactly 7 use `T`
 (smooth quadratic) — every one a rolling hill or water line. They will throw the

@@ -17,6 +17,7 @@ import { Figtree_400Regular, Figtree_600SemiBold } from '@expo-google-fonts/figt
 import { SessionProvider, useSession } from '../src/auth/SessionProvider.tsx';
 import { warmAvatarPaths } from '../src/paint/avatarGeometry.ts';
 import { warmCompanionPaths } from '../src/paint/companionGeometry.ts';
+import { warmScenePaths } from '../src/paint/scenes/index.ts';
 import { SceneProvider } from '../src/theme/SceneProvider.tsx';
 import { fonts } from '../src/theme/tokens.ts';
 
@@ -24,6 +25,7 @@ import { fonts } from '../src/theme/tokens.ts';
 // run, not on whichever frame first draws it.
 warmAvatarPaths();
 warmCompanionPaths();
+warmScenePaths();
 
 void SplashScreen.preventAutoHideAsync();
 
